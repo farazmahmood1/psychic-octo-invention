@@ -1,0 +1,185 @@
+import { useState, useMemo, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
+import type { ConversationSummary, PaginatedResponse } from '@openclaw/shared';
+import { PageHeader } from '@/components/page-header';
+import { DataTable, type Column } from '@/components/data-table';
+import { StatusBadge } from '@/components/status-badge';
+import { Select } from '@/components/ui/select';
+import { Input } from '@/components/ui/input';
+import { useApiQuery } from '@/hooks/use-api-query';
+
+const EMPTY_RESPONSE: PaginatedResponse<ConversationSummary> = {
+  data: [],
+  meta: { page: 1, pageSize: 20, total: 0, totalPages: 0 },
+};
+
+const CHANNEL_OPTIONS = [
+  { value: '', label: 'All channels' },
+  { value: 'telegram', label: 'Telegram' },
+  { value: 'email', label: 'Email' },
+  { value: 'admin_portal', label: 'Admin Portal' },
+];
+
+const STATUS_OPTIONS = [
+  { value: '', label: 'All statuses' },
+  { value: 'active', label: 'Active' },
+  { value: 'archived', label: 'Archived' },
+  { value: 'closed', label: 'Closed' },
+];
+
+function formatChannel(channel: string): string {
+  const map: Record<string, string> = {
+    telegram: 'Telegram',
+    email: 'Email',
+    admin_portal: 'Admin Portal',
+  };
+  return map[channel] ?? channel;
+}
+
+export function ChatsPage() {
+  const navigate = useNavigate();
+  const [page, setPage] = useState(1);
+  const [channel, setChannel] = useState('');
+  const [status, setStatus] = useState('');
+  const [search, setSearch] = useState('');
+
+  const params = useMemo(() => {
+    const p = new URLSearchParams();
+    p.set('page', String(page));
+    p.set('pageSize', '20');
+    if (channel) p.set('channel', channel);
+    if (status) p.set('status', status);
+    return p.toString();
+  }, [page, channel, status]);
+
+  const { data, loading, error, refetch } = useApiQuery<PaginatedResponse<ConversationSummary>>(
+    `/conversations?${params}`,
+    EMPTY_RESPONSE,
+  );
+
+  const conversations = data?.data ?? [];
+  const meta = data?.meta ?? EMPTY_RESPONSE.meta;
+
+  // Client-side search filter
+  const filtered = search
+    ? conversations.filter(
+        (c) =>
+          c.id.toLowerCase().includes(search.toLowerCase()) ||
+          c.title?.toLowerCase().includes(search.toLowerCase()),
+      )
+    : conversations;
+
+  const handleRowClick = useCallback(
+    (row: ConversationSummary) => {
+      navigate(`/dashboard/chats/${row.id}`);
+    },
+    [navigate],
+  );
+
+  const columns: Column<ConversationSummary>[] = [
+    {
+      key: 'id',
+      header: 'ID',
+      render: (row) => <span className="font-mono text-xs">{row.id.slice(0, 8)}...</span>,
+      className: 'w-28',
+    },
+    {
+      key: 'channel',
+      header: 'Channel',
+      render: (row) => formatChannel(row.channel),
+      className: 'w-32',
+    },
+    {
+      key: 'title',
+      header: 'Title',
+      render: (row) => row.title ?? <span className="text-muted-foreground">Untitled</span>,
+    },
+    {
+      key: 'preview',
+      header: 'Last Message',
+      render: (row) =>
+        row.lastMessagePreview ? (
+          <span className="text-muted-foreground line-clamp-1">{row.lastMessagePreview}</span>
+        ) : (
+          <span className="text-muted-foreground">-</span>
+        ),
+    },
+    {
+      key: 'messages',
+      header: 'Messages',
+      render: (row) => row.messageCount,
+      className: 'w-24 text-right',
+    },
+    {
+      key: 'status',
+      header: 'Status',
+      render: (row) => <StatusBadge status={row.status} />,
+      className: 'w-28',
+    },
+    {
+      key: 'updatedAt',
+      header: 'Last Activity',
+      render: (row) => new Date(row.updatedAt).toLocaleDateString(),
+      className: 'w-36',
+    },
+  ];
+
+  const handleChannelChange = (val: string) => {
+    setChannel(val);
+    setPage(1);
+  };
+
+  const handleStatusChange = (val: string) => {
+    setStatus(val);
+    setPage(1);
+  };
+
+  return (
+    <div className="space-y-6">
+      <PageHeader
+        title="Chat History"
+        description="View and search all conversations across channels. Click a row to see the full message timeline."
+      />
+
+      {/* Filters */}
+      <div className="flex flex-wrap items-center gap-3">
+        <Input
+          placeholder="Search by ID or title..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="w-64"
+        />
+        <Select value={channel} onChange={(e) => handleChannelChange(e.target.value)}>
+          {CHANNEL_OPTIONS.map((opt) => (
+            <option key={opt.value} value={opt.value}>
+              {opt.label}
+            </option>
+          ))}
+        </Select>
+        <Select value={status} onChange={(e) => handleStatusChange(e.target.value)}>
+          {STATUS_OPTIONS.map((opt) => (
+            <option key={opt.value} value={opt.value}>
+              {opt.label}
+            </option>
+          ))}
+        </Select>
+      </div>
+
+      {/* Table */}
+      <DataTable<ConversationSummary>
+        columns={columns}
+        data={filtered}
+        loading={loading}
+        error={error}
+        onRetry={refetch}
+        onRowClick={handleRowClick}
+        emptyTitle="No conversations yet"
+        emptyDescription="Conversations will appear here once users start chatting."
+        page={meta.page}
+        pageSize={meta.pageSize}
+        total={meta.total}
+        onPageChange={setPage}
+      />
+    </div>
+  );
+}

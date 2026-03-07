@@ -1,0 +1,47 @@
+{
+  "root": true,
+  "parser": "@typescript-eslint/parser",
+  "parserOptions": {
+    "ecmaVersion": 2022,
+    "sourceType": "module"
+  },
+  "plugins": ["@typescript-eslint"],
+  "extends": [
+    "eslint:recommended",
+    "plugin:@typescript-eslint/recommended",
+    "plugin:@typescript-eslint/recommended-requiring-type-checking",
+    "prettier"
+  ],
+  "rules": {
+    "@typescript-eslint/no-explicit-any": "error",
+    "@typescript-eslint/no-unused-vars": ["error", { "argsIgnorePattern": "^_" }],
+    "@typescript-eslint/explicit-function-return-type": "off",
+    "@typescript-eslint/no-floating-promises": "error",
+    "no-console": ["warn", { "allow": ["warn", "error"] }]
+  },
+  "overrides": [
+    {
+      "files": ["apps/admin/**/*.{ts,tsx}"],
+      "plugins": ["react", "react-hooks"],
+      "extends": [
+        "plugin:react/recommended",
+        "plugin:react/jsx-runtime",
+        "plugin:react-hooks/recommended"
+      ],
+      "settings": {
+        "react": { "version": "detect" }
+      },
+      "parserOptions": {
+        "ecmaFeatures": { "jsx": true },
+        "project": "./apps/admin/tsconfig.json"
+      }
+    },
+    {
+      "files": ["apps/api/**/*.ts"],
+      "parserOptions": {
+        "project": "./apps/api/tsconfig.json"
+      }
+    }
+  ],
+  "ignorePatterns": ["dist", "build", "node_modules", "*.js"]
+}

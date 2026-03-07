@@ -1,0 +1,209 @@
+import { useState, useMemo } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import type { ConversationDetail, MessageRecord, PaginatedResponse } from '@openclaw/shared';
+import { PageHeader } from '@/components/page-header';
+import { StatusBadge } from '@/components/status-badge';
+import { ErrorPanel } from '@/components/error-panel';
+import { EmptyState } from '@/components/empty-state';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Card, CardContent } from '@/components/ui/card';
+import { useApiQuery } from '@/hooks/use-api-query';
+import { ArrowLeft, User, Bot, Paperclip } from 'lucide-react';
+import { cn } from '@/lib/utils';
+
+const EMPTY_DETAIL: { data: ConversationDetail } = {
+  data: {
+    id: '',
+    channel: 'telegram',
+    title: null,
+    status: 'active',
+    messageCount: 0,
+    lastMessagePreview: null,
+    lastMessageAt: null,
+    metadata: null,
+    participants: [],
+    createdAt: '',
+    updatedAt: '',
+  },
+};
+
+const EMPTY_MESSAGES: PaginatedResponse<MessageRecord> = {
+  data: [],
+  meta: { page: 1, pageSize: 50, total: 0, totalPages: 0 },
+};
+
+function formatChannel(channel: string): string {
+  const map: Record<string, string> = { telegram: 'Telegram', email: 'Email', admin_portal: 'Admin Portal' };
+  return map[channel] ?? channel;
+}
+
+function MessageBubble({ message }: { message: MessageRecord }) {
+  const isInbound = message.direction === 'inbound';
+  const attachments = (message.attachments ?? []) as Array<Record<string, unknown>>;
+
+  return (
+    <div className={cn('flex', isInbound ? 'justify-start' : 'justify-end')}>
+      <div className={cn('max-w-[70%] space-y-1')}>
+        <div
+          className={cn(
+            'rounded-lg px-4 py-2.5 text-sm',
+            isInbound
+              ? 'bg-muted text-foreground'
+              : 'bg-primary text-primary-foreground',
+          )}
+        >
+          <div className="flex items-center gap-2 mb-1">
+            {isInbound ? <User className="h-3 w-3" /> : <Bot className="h-3 w-3" />}
+            <span className="text-xs font-medium opacity-70">
+              {isInbound ? 'User' : 'Assistant'}
+            </span>
+          </div>
+          <p className="whitespace-pre-wrap break-words">{message.content}</p>
+
+          {attachments.length > 0 && (
+            <div className="mt-2 space-y-1">
+              {attachments.map((att, i) => (
+                <div key={i} className="flex items-center gap-1.5 text-xs opacity-80">
+                  <Paperclip className="h-3 w-3" />
+                  <span>{String(att['fileName'] ?? att['type'] ?? `Attachment ${i + 1}`)}</span>
+                  {att['fileSize'] != null && (
+                    <span className="opacity-60">
+                      ({Math.round((att['fileSize'] as number) / 1024)}KB)
+                    </span>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+        <div className={cn('flex items-center gap-2 text-[10px] text-muted-foreground', !isInbound && 'justify-end')}>
+          <span>{new Date(message.createdAt).toLocaleString()}</span>
+          <StatusBadge status={message.status} className="text-[10px] h-4" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export function ConversationDetailPage() {
+  const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
+  const [msgPage, setMsgPage] = useState(1);
+
+  const detail = useApiQuery<{ data: ConversationDetail }>(
+    id ? `/conversations/${id}` : null,
+    EMPTY_DETAIL,
+  );
+
+  const msgParams = useMemo(() => {
+    const p = new URLSearchParams();
+    p.set('page', String(msgPage));
+    p.set('pageSize', '50');
+    return p.toString();
+  }, [msgPage]);
+
+  const messages = useApiQuery<PaginatedResponse<MessageRecord>>(
+    id ? `/conversations/${id}/messages?${msgParams}` : null,
+    EMPTY_MESSAGES,
+  );
+
+  const conv = detail.data?.data;
+  const msgList = messages.data?.data ?? [];
+  const msgMeta = messages.data?.meta ?? EMPTY_MESSAGES.meta;
+
+  if (detail.error) {
+    return <ErrorPanel message={detail.error} onRetry={detail.refetch} />;
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center gap-4">
+        <Button variant="ghost" size="sm" onClick={() => navigate('/dashboard/chats')}>
+          <ArrowLeft className="mr-1 h-4 w-4" /> Back
+        </Button>
+      </div>
+
+      {detail.loading ? (
+        <div className="space-y-3">
+          <Skeleton className="h-8 w-64" />
+          <Skeleton className="h-4 w-96" />
+        </div>
+      ) : conv ? (
+        <>
+          <PageHeader
+            title={conv.title ?? `Conversation ${conv.id.slice(0, 8)}`}
+            description={`${formatChannel(conv.channel)} conversation with ${conv.messageCount} messages`}
+          />
+
+          {/* Conversation info */}
+          <div className="flex flex-wrap items-center gap-3">
+            <StatusBadge status={conv.status} />
+            <Badge variant="outline">{formatChannel(conv.channel)}</Badge>
+            <span className="text-sm text-muted-foreground">
+              Started {new Date(conv.createdAt).toLocaleDateString()}
+            </span>
+            {conv.participants.length > 0 && (
+              <span className="text-sm text-muted-foreground">
+                Participants: {conv.participants.map((p) => p.displayName ?? p.externalId ?? 'Unknown').join(', ')}
+              </span>
+            )}
+          </div>
+
+          {/* Message timeline */}
+          <Card>
+            <CardContent className="p-6">
+              {messages.loading ? (
+                <div className="space-y-4">
+                  {Array.from({ length: 5 }).map((_, i) => (
+                    <div key={i} className={cn('flex', i % 2 === 0 ? 'justify-start' : 'justify-end')}>
+                      <Skeleton className="h-16 w-[60%] rounded-lg" />
+                    </div>
+                  ))}
+                </div>
+              ) : msgList.length === 0 ? (
+                <EmptyState
+                  title="No messages"
+                  description="This conversation has no messages yet."
+                />
+              ) : (
+                <div className="space-y-4">
+                  {msgList.map((msg) => (
+                    <MessageBubble key={msg.id} message={msg} />
+                  ))}
+                </div>
+              )}
+
+              {msgMeta.total > msgMeta.pageSize && (
+                <div className="mt-6 flex items-center justify-between">
+                  <p className="text-sm text-muted-foreground">
+                    Page {msgMeta.page} of {msgMeta.totalPages} ({msgMeta.total} messages)
+                  </p>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={msgPage <= 1}
+                      onClick={() => setMsgPage((p) => p - 1)}
+                    >
+                      Previous
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={msgPage >= msgMeta.totalPages}
+                      onClick={() => setMsgPage((p) => p + 1)}
+                    >
+                      Next
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </>
+      ) : null}
+    </div>
+  );
+}

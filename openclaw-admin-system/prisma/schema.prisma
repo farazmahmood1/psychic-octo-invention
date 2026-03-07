@@ -1,0 +1,643 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ═══════════════════════════════════════════════════════
+// ENUMS
+// ═══════════════════════════════════════════════════════
+
+enum AdminRole {
+  super_admin
+  admin
+  viewer
+}
+
+enum ChannelType {
+  telegram
+  email
+  admin_portal
+}
+
+enum MessageDirection {
+  inbound
+  outbound
+}
+
+enum MessageStatus {
+  pending
+  sent
+  delivered
+  failed
+  received
+}
+
+enum ConversationStatus {
+  active
+  archived
+  closed
+}
+
+enum SkillSourceType {
+  builtin
+  uploaded
+  git_repo
+  marketplace
+}
+
+enum VettingResult {
+  passed
+  failed
+  warning
+  pending
+}
+
+enum VettingReviewerType {
+  system
+  manual
+}
+
+enum JobStatus {
+  pending
+  running
+  completed
+  failed
+  retrying
+  cancelled
+}
+
+enum IntegrationStatus {
+  active
+  inactive
+  error
+}
+
+enum ReceiptStatus {
+  pending
+  extracted
+  exported
+  failed
+}
+
+enum LedgerExportStatus {
+  pending
+  exported
+  failed
+}
+
+enum GhlActionType {
+  create_contact
+  update_contact
+  create_opportunity
+  add_note
+  send_sms
+  custom
+}
+
+enum SubAgentTaskStatus {
+  queued
+  running
+  completed
+  failed
+  cancelled
+}
+
+enum FollowUpPriority {
+  low
+  medium
+  high
+  urgent
+}
+
+enum FollowUpRecommendationStatus {
+  draft
+  pending_review
+  approved
+  sent
+  dismissed
+  expired
+}
+
+// ═══════════════════════════════════════════════════════
+// 1. ADMIN USERS
+// ═══════════════════════════════════════════════════════
+
+model Admin {
+  id             String    @id @default(cuid())
+  email          String    @unique
+  passwordHash   String    @map("password_hash")
+  displayName    String?   @map("display_name")
+  role           AdminRole @default(admin)
+  isActive       Boolean   @default(true) @map("is_active")
+  lastLoginAt    DateTime? @map("last_login_at")
+  lastLoginIp    String?   @map("last_login_ip")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+
+  sessions       AdminSession[]
+  auditLogs      AuditLog[]
+
+  @@map("admins")
+}
+
+// ═══════════════════════════════════════════════════════
+// 2. ADMIN SESSIONS
+// ═══════════════════════════════════════════════════════
+
+model AdminSession {
+  id          String   @id @default(cuid())
+  adminId     String   @map("admin_id")
+  token       String   @unique
+  ipAddress   String?  @map("ip_address")
+  userAgent   String?  @map("user_agent")
+  expiresAt   DateTime @map("expires_at")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  admin       Admin    @relation(fields: [adminId], references: [id], onDelete: Cascade)
+
+  @@index([adminId])
+  @@index([expiresAt])
+  @@map("admin_sessions")
+}
+
+// ═══════════════════════════════════════════════════════
+// 3. CONVERSATIONS
+// ═══════════════════════════════════════════════════════
+
+model Conversation {
+  id              String             @id @default(cuid())
+  channel         ChannelType
+  externalId      String?            @map("external_id")
+  title           String?
+  status          ConversationStatus @default(active)
+  metadata        Json?
+  createdAt       DateTime           @default(now()) @map("created_at")
+  updatedAt       DateTime           @updatedAt @map("updated_at")
+
+  messages        Message[]
+  participants    Participant[]
+  memoryRecords   MemoryRecord[]
+  telegramChat    TelegramChat?
+  emailThread     EmailThread?
+
+  @@unique([channel, externalId])
+  @@index([channel])
+  @@index([status])
+  @@index([createdAt])
+  @@map("conversations")
+}
+
+// ═══════════════════════════════════════════════════════
+// 4. PARTICIPANTS (actor metadata per conversation)
+// ═══════════════════════════════════════════════════════
+
+model Participant {
+  id              String      @id @default(cuid())
+  conversationId  String      @map("conversation_id")
+  externalId      String?     @map("external_id")
+  channel         ChannelType
+  displayName     String?     @map("display_name")
+  metadata        Json?
+  createdAt       DateTime    @default(now()) @map("created_at")
+
+  conversation    Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  messages        Message[]
+
+  @@unique([conversationId, channel, externalId])
+  @@index([conversationId])
+  @@map("participants")
+}
+
+// ═══════════════════════════════════════════════════════
+// 5. MESSAGES
+// ═══════════════════════════════════════════════════════
+
+model Message {
+  id                String           @id @default(cuid())
+  conversationId    String           @map("conversation_id")
+  participantId     String?          @map("participant_id")
+  direction         MessageDirection
+  status            MessageStatus    @default(pending)
+  rawContent        String?          @map("raw_content")
+  content           String
+  attachments       Json?
+  providerMessageId String?          @map("provider_message_id")
+  metadata          Json?
+  tokenUsage        Int?             @map("token_usage")
+  createdAt         DateTime         @default(now()) @map("created_at")
+  updatedAt         DateTime         @updatedAt @map("updated_at")
+
+  conversation      Conversation     @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  participant       Participant?     @relation(fields: [participantId], references: [id], onDelete: SetNull)
+  usageLog          UsageLog?
+  emailMessage      EmailMessage?
+
+  @@index([conversationId, createdAt])
+  @@index([providerMessageId])
+  @@index([status])
+  @@map("messages")
+}
+
+// ═══════════════════════════════════════════════════════
+// 6. TELEGRAM CHAT MAPPING
+// ═══════════════════════════════════════════════════════
+
+model TelegramChat {
+  id              String   @id @default(cuid())
+  conversationId  String   @unique @map("conversation_id")
+  telegramChatId  String   @unique @map("telegram_chat_id")
+  telegramUserId  String?  @map("telegram_user_id")
+  username        String?
+  firstName       String?  @map("first_name")
+  lastName        String?  @map("last_name")
+  chatType        String?  @map("chat_type")
+  metadata        Json?
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  conversation    Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([telegramUserId])
+  @@map("telegram_chats")
+}
+
+// ═══════════════════════════════════════════════════════
+// 7. EMAIL THREADS AND MESSAGE MAPPING
+// ═══════════════════════════════════════════════════════
+
+model EmailThread {
+  id              String   @id @default(cuid())
+  conversationId  String   @unique @map("conversation_id")
+  subject         String
+  threadId        String?  @unique @map("thread_id")
+  fromAddress     String   @map("from_address")
+  toAddresses     Json     @map("to_addresses")
+  lastMessageAt   DateTime @map("last_message_at")
+  metadata        Json?
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  conversation    Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  emailMessages   EmailMessage[]
+
+  @@index([fromAddress])
+  @@map("email_threads")
+}
+
+model EmailMessage {
+  id              String   @id @default(cuid())
+  emailThreadId   String   @map("email_thread_id")
+  messageId       String?  @unique @map("message_id")
+  providerEmailId String?  @unique @map("provider_email_id")
+  inReplyTo       String?  @map("in_reply_to")
+  fromAddress     String   @map("from_address")
+  toAddresses     Json     @map("to_addresses")
+  ccAddresses     Json?    @map("cc_addresses")
+  subject         String?
+  bodyText        String?  @map("body_text")
+  bodyHtml        String?  @map("body_html")
+  headers         Json?
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  emailThread     EmailThread @relation(fields: [emailThreadId], references: [id], onDelete: Cascade)
+  message         Message?    @relation(fields: [messageId], references: [id], onDelete: SetNull)
+
+  @@index([emailThreadId])
+  @@index([fromAddress])
+  @@map("email_messages")
+}
+
+// ═══════════════════════════════════════════════════════
+// 8. LONG-TERM MEMORY
+// ═══════════════════════════════════════════════════════
+
+model MemoryRecord {
+  id                String    @id @default(cuid())
+  namespace         String
+  subjectKey        String    @map("subject_key")
+  value             Json
+  summary           String?
+  score             Float?
+  sourceConversationId String? @map("source_conversation_id")
+  sourceMessageId   String?   @map("source_message_id")
+  expiresAt         DateTime? @map("expires_at")
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
+
+  sourceConversation Conversation? @relation(fields: [sourceConversationId], references: [id], onDelete: SetNull)
+
+  @@index([namespace, subjectKey])
+  @@index([namespace, createdAt])
+  @@index([expiresAt])
+  @@map("memory_records")
+}
+
+// ═══════════════════════════════════════════════════════
+// 9-11. SKILLS, VERSIONS, VETTING
+// ═══════════════════════════════════════════════════════
+
+model Skill {
+  id                String          @id @default(cuid())
+  slug              String          @unique
+  displayName       String          @map("display_name")
+  description       String?
+  sourceType        SkillSourceType @map("source_type")
+  sourceUrl         String?         @map("source_url")
+  sourceRef         String?         @map("source_ref")
+  enabled           Boolean         @default(false)
+  currentVersionId  String?         @unique @map("current_version_id")
+  metadata          Json?
+  createdAt         DateTime        @default(now()) @map("created_at")
+  updatedAt         DateTime        @updatedAt @map("updated_at")
+
+  currentVersion    SkillVersion?   @relation("CurrentVersion", fields: [currentVersionId], references: [id])
+  versions          SkillVersion[]  @relation("SkillVersions")
+
+  @@index([enabled])
+  @@map("skills")
+}
+
+model SkillVersion {
+  id            String    @id @default(cuid())
+  skillId       String    @map("skill_id")
+  version       String
+  codeHash      String    @map("code_hash")
+  config        Json?
+  changelog     String?
+  createdAt     DateTime  @default(now()) @map("created_at")
+
+  skill         Skill     @relation("SkillVersions", fields: [skillId], references: [id], onDelete: Cascade)
+  currentOf     Skill?    @relation("CurrentVersion")
+  vettingResults SkillVettingResult[]
+
+  @@unique([skillId, version])
+  @@index([skillId])
+  @@map("skill_versions")
+}
+
+model SkillVettingResult {
+  id              String              @id @default(cuid())
+  skillVersionId  String              @map("skill_version_id")
+  result          VettingResult
+  reviewerType    VettingReviewerType @map("reviewer_type")
+  reasons         Json?
+  detectedRisks   Json?               @map("detected_risks")
+  codeHash        String              @map("code_hash")
+  reviewerNote    String?             @map("reviewer_note")
+  createdAt       DateTime            @default(now()) @map("created_at")
+
+  skillVersion    SkillVersion @relation(fields: [skillVersionId], references: [id], onDelete: Cascade)
+
+  @@index([skillVersionId])
+  @@index([result])
+  @@map("skill_vetting_results")
+}
+
+// ═══════════════════════════════════════════════════════
+// 12. AUDIT LOGS (append-only)
+// ═══════════════════════════════════════════════════════
+
+model AuditLog {
+  id          String   @id @default(cuid())
+  actorId     String?  @map("actor_id")
+  actorType   String   @map("actor_type")
+  action      String
+  targetType  String?  @map("target_type")
+  targetId    String?  @map("target_id")
+  metadata    Json?
+  ipAddress   String?  @map("ip_address")
+  userAgent   String?  @map("user_agent")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  actor       Admin?   @relation(fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([action, createdAt])
+  @@index([actorId])
+  @@index([targetType, targetId])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
+
+// ═══════════════════════════════════════════════════════
+// 13-14. USAGE LOGS / COST TRACKING
+// ═══════════════════════════════════════════════════════
+
+model UsageLog {
+  id                String   @id @default(cuid())
+  messageId         String?  @unique @map("message_id")
+  provider          String
+  model             String
+  requestType       String   @map("request_type")
+  promptTokens      Int      @map("prompt_tokens")
+  completionTokens  Int      @map("completion_tokens")
+  totalTokens       Int      @map("total_tokens")
+  costUsd           Decimal  @map("cost_usd") @db.Decimal(12, 8)
+  latencyMs         Int?     @map("latency_ms")
+  routingDecision   Json?    @map("routing_decision")
+  metadata          Json?
+  createdAt         DateTime @default(now()) @map("created_at")
+
+  message           Message? @relation(fields: [messageId], references: [id], onDelete: SetNull)
+
+  @@index([provider, model, createdAt])
+  @@index([createdAt])
+  @@map("usage_logs")
+}
+
+// ═══════════════════════════════════════════════════════
+// 15. JOBS / ASYNC TASK RECORDS
+// ═══════════════════════════════════════════════════════
+
+model Job {
+  id            String    @id @default(cuid())
+  queueName     String    @map("queue_name")
+  jobType       String    @map("job_type")
+  payload       Json?
+  status        JobStatus @default(pending)
+  attempts      Int       @default(0)
+  maxAttempts   Int       @default(3) @map("max_attempts")
+  errorDetails  Json?     @map("error_details")
+  result        Json?
+  startedAt     DateTime? @map("started_at")
+  completedAt   DateTime? @map("completed_at")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  @@index([status])
+  @@index([queueName, status])
+  @@index([jobType])
+  @@index([createdAt])
+  @@map("jobs")
+}
+
+// ═══════════════════════════════════════════════════════
+// 16. INTEGRATION CONFIGS / STATE
+// ═══════════════════════════════════════════════════════
+
+model Integration {
+  id          String            @id @default(cuid())
+  name        String            @unique
+  type        String
+  config      Json?
+  status      IntegrationStatus @default(inactive)
+  lastSyncAt  DateTime?         @map("last_sync_at")
+  lastError   String?           @map("last_error")
+  createdAt   DateTime          @default(now()) @map("created_at")
+  updatedAt   DateTime          @updatedAt @map("updated_at")
+
+  @@index([status])
+  @@map("integrations")
+}
+
+// ═══════════════════════════════════════════════════════
+// 19. RECEIPT EXTRACTION RECORDS
+// ═══════════════════════════════════════════════════════
+
+model ReceiptExtraction {
+  id              String        @id @default(cuid())
+  conversationId  String?       @map("conversation_id")
+  externalUserId  String?       @map("external_user_id")
+  sourceChannel   ChannelType   @map("source_channel")
+  sourceMessageId String?       @map("source_message_id")
+  idempotencyKey  String?       @unique @map("idempotency_key")
+  fileName        String?       @map("file_name")
+  fileUrl         String?       @map("file_url")
+  fileType        String?       @map("file_type")
+  extractedData   Json?         @map("extracted_data")
+  category        String?
+  confidence      Float?
+  status          ReceiptStatus @default(pending)
+  errorDetails    String?       @map("error_details")
+  createdAt       DateTime      @default(now()) @map("created_at")
+  updatedAt       DateTime      @updatedAt @map("updated_at")
+
+  ledgerExport    LedgerExport?
+
+  @@index([status])
+  @@index([sourceChannel, createdAt])
+  @@index([conversationId, status])
+  @@map("receipt_extractions")
+}
+
+// ═══════════════════════════════════════════════════════
+// 20. BOOKKEEPING LEDGER EXPORT RECORDS
+// ═══════════════════════════════════════════════════════
+
+model LedgerExport {
+  id                    String             @id @default(cuid())
+  receiptExtractionId   String             @unique @map("receipt_extraction_id")
+  spreadsheetId         String             @map("spreadsheet_id")
+  sheetName             String?            @map("sheet_name")
+  rowRange              String?            @map("row_range")
+  exportedData          Json?              @map("exported_data")
+  status                LedgerExportStatus @default(pending)
+  errorDetails          String?            @map("error_details")
+  exportedAt            DateTime?          @map("exported_at")
+  createdAt             DateTime           @default(now()) @map("created_at")
+
+  receiptExtraction     ReceiptExtraction  @relation(fields: [receiptExtractionId], references: [id], onDelete: Cascade)
+
+  @@index([status])
+  @@map("ledger_exports")
+}
+
+// ═══════════════════════════════════════════════════════
+// 21. GHL ACTION LOGS
+// ═══════════════════════════════════════════════════════
+
+model GhlActionLog {
+  id              String        @id @default(cuid())
+  actionType      GhlActionType @map("action_type")
+  contactId       String?       @map("contact_id")
+  opportunityId   String?       @map("opportunity_id")
+  requestPayload  Json?         @map("request_payload")
+  responsePayload Json?         @map("response_payload")
+  statusCode      Int?          @map("status_code")
+  success         Boolean
+  errorMessage    String?       @map("error_message")
+  latencyMs       Int?          @map("latency_ms")
+  createdAt       DateTime      @default(now()) @map("created_at")
+
+  @@index([actionType, createdAt])
+  @@index([contactId])
+  @@index([success])
+  @@map("ghl_action_logs")
+}
+
+// ═══════════════════════════════════════════════════════
+// 22. SUB-AGENT TASK RECORDS
+// ═══════════════════════════════════════════════════════
+
+model SubAgentTask {
+  id            String             @id @default(cuid())
+  agentName     String             @map("agent_name")
+  taskType      String             @map("task_type")
+  input         Json?
+  output        Json?
+  status        SubAgentTaskStatus @default(queued)
+  attempts      Int                @default(0)
+  errorDetails  Json?              @map("error_details")
+  parentJobId   String?            @map("parent_job_id")
+  startedAt     DateTime?          @map("started_at")
+  completedAt   DateTime?          @map("completed_at")
+  createdAt     DateTime           @default(now()) @map("created_at")
+  updatedAt     DateTime           @updatedAt @map("updated_at")
+
+  @@index([agentName, status])
+  @@index([status])
+  @@index([parentJobId])
+  @@index([createdAt])
+  @@map("sub_agent_tasks")
+}
+
+// ═══════════════════════════════════════════════════════
+// 23. SYSTEM SETTINGS / FEATURE FLAGS / ROUTING THRESHOLDS
+// ═══════════════════════════════════════════════════════
+
+model SystemSetting {
+  id          String   @id @default(cuid())
+  key         String   @unique
+  value       Json
+  description String?
+  updatedBy   String?  @map("updated_by")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@map("system_settings")
+}
+
+// ═══════════════════════════════════════════════════════
+// 24. FOLLOW-UP RECOMMENDATIONS
+// ═══════════════════════════════════════════════════════
+
+model FollowUpRecommendation {
+  id                  String                        @id @default(cuid())
+  conversationId      String?                       @map("conversation_id")
+  externalUserId      String?                       @map("external_user_id")
+  contactIdentifier   String                        @map("contact_identifier")
+  contactName         String?                       @map("contact_name")
+  reason              String
+  reasonDetail        String                        @map("reason_detail")
+  suggestedMessage    String                        @map("suggested_message")
+  priority            FollowUpPriority              @default(medium)
+  nextActionDate      DateTime                      @map("next_action_date")
+  channel             String?
+  status              FollowUpRecommendationStatus  @default(draft)
+  approvedAt          DateTime?                     @map("approved_at")
+  sentAt              DateTime?                     @map("sent_at")
+  dismissedAt         DateTime?                     @map("dismissed_at")
+  metadata            Json?
+  createdAt           DateTime                      @default(now()) @map("created_at")
+  updatedAt           DateTime                      @updatedAt @map("updated_at")
+
+  @@index([status])
+  @@index([conversationId, status])
+  @@index([contactIdentifier])
+  @@index([nextActionDate])
+  @@index([priority, status])
+  @@map("followup_recommendations")
+}
