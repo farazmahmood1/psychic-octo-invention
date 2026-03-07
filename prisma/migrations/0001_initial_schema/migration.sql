@@ -302,12 +302,16 @@ CREATE TABLE "integrations" (
 -- CreateTable
 CREATE TABLE "receipt_extractions" (
     "id" TEXT NOT NULL,
+    "conversation_id" TEXT,
+    "external_user_id" TEXT,
     "source_channel" "ChannelType" NOT NULL,
     "source_message_id" TEXT,
+    "idempotency_key" TEXT,
     "file_name" TEXT,
     "file_url" TEXT,
     "file_type" TEXT,
     "extracted_data" JSONB,
+    "category" TEXT,
     "confidence" DOUBLE PRECISION,
     "status" "ReceiptStatus" NOT NULL DEFAULT 'pending',
     "error_details" TEXT,
@@ -521,10 +525,16 @@ CREATE UNIQUE INDEX "integrations_name_key" ON "integrations"("name");
 CREATE INDEX "integrations_status_idx" ON "integrations"("status");
 
 -- CreateIndex
+CREATE UNIQUE INDEX "receipt_extractions_idempotency_key_key" ON "receipt_extractions"("idempotency_key");
+
+-- CreateIndex
 CREATE INDEX "receipt_extractions_status_idx" ON "receipt_extractions"("status");
 
 -- CreateIndex
 CREATE INDEX "receipt_extractions_source_channel_created_at_idx" ON "receipt_extractions"("source_channel", "created_at");
+
+-- CreateIndex
+CREATE INDEX "receipt_extractions_conversation_id_status_idx" ON "receipt_extractions"("conversation_id", "status");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "ledger_exports_receipt_extraction_id_key" ON "ledger_exports"("receipt_extraction_id");

@@ -21,3 +21,23 @@ export async function getDashboardStats(): Promise<DashboardStats> {
     activeSkills,
   };
 }
+
+export async function getRecentActivity(limit = 10) {
+  const logs = await prisma.auditLog.findMany({
+    take: limit,
+    orderBy: { createdAt: 'desc' },
+    select: {
+      id: true,
+      action: true,
+      targetType: true,
+      createdAt: true,
+    },
+  });
+
+  return logs.map((log) => ({
+    id: log.id,
+    action: log.action,
+    targetType: log.targetType,
+    createdAt: log.createdAt.toISOString(),
+  }));
+}

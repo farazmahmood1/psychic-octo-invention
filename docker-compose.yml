@@ -4,7 +4,7 @@ services:
   api:
     build:
       context: .
-      target: api
+      target: builder
     ports:
       - '4000:4000'
     env_file:
@@ -28,7 +28,7 @@ services:
   worker:
     build:
       context: .
-      target: worker
+      target: builder
     env_file:
       - .env
     environment:
@@ -50,8 +50,7 @@ services:
     ports:
       - '5173:5173'
     volumes:
-      - ./apps/admin/src:/app/apps/admin/src
-      - ./apps/admin/index.html:/app/apps/admin/index.html
+      - ./apps/admin:/app/apps/admin
     working_dir: /app
     command: npx vite --host 0.0.0.0 apps/admin
 
