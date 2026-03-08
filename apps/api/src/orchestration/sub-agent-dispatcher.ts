@@ -28,6 +28,7 @@ export interface SubAgentCallContext {
   externalUserId?: string;
   sourceChannel?: string;
   sourceMessageId?: string;
+  sourceImageUrl?: string;
 }
 
 /**
@@ -70,8 +71,7 @@ export async function processSubAgentCalls(
     subAgentDispatches.push(dispatch);
 
     const output = dispatch.output as Record<string, unknown> | undefined;
-    const resultText = output?.['summary'] as string
-      ?? (dispatch.status === 'completed' ? 'Operation completed.' : `Error: ${dispatch.error}`);
+    const resultText = buildToolResultText(output, dispatch);
 
     toolDispatches.push({
       toolName: tc.name,
@@ -99,11 +99,18 @@ async function executeGhlSubAgent(
     ? rawAction
     : 'search_contact') as GhlSubAgentInput['action'];
 
+  const query = firstStringArg(args, ['query', 'contactQuery', 'contactName', 'name']);
+  const contactId = firstStringArg(args, ['contactId', 'id']);
+  let updates = isRecord(args['updates']) ? args['updates'] as Record<string, unknown> : undefined;
+  if (!updates && typeof args['field'] === 'string' && Object.prototype.hasOwnProperty.call(args, 'value')) {
+    updates = { [args['field']]: args['value'] };
+  }
+
   const input: GhlSubAgentInput = {
     action,
-    query: args['query'] as string | undefined,
-    contactId: args['contactId'] as string | undefined,
-    updates: args['updates'] as Record<string, unknown> | undefined,
+    query,
+    contactId,
+    updates,
   };
 
   // Persist sub-agent task record
@@ -156,12 +163,19 @@ async function executeBookkeepingSubAgent(
     ? rawAction
     : 'process_receipt') as BookkeepingSubAgentInput['action'];
 
+  const imageUrl = firstStringArg(args, ['imageUrl', 'image_url', 'attachmentUrl', 'attachment_url', 'url'])
+    ?? context?.sourceImageUrl;
+  const receiptTaskId = firstStringArg(args, ['receiptTaskId', 'receiptTaskID', 'receipt_task_id', 'receipt_id', 'taskId']);
+  const category = firstStringArg(args, ['category', 'expenseCategory', 'expense_category'])
+    ?? (typeof args['value'] === 'string' ? args['value'] : undefined);
+  const notes = firstStringArg(args, ['notes', 'note']);
+
   const input: BookkeepingSubAgentInput & { _context?: SubAgentCallContext } = {
     action,
-    imageUrl: args['imageUrl'] as string | undefined,
-    receiptTaskId: args['receiptTaskId'] as string | undefined,
-    category: args['category'] as string | undefined,
-    notes: args['notes'] as string | undefined,
+    imageUrl,
+    receiptTaskId,
+    category,
+    notes,
     _context: context,
   };
 
@@ -271,4 +285,41 @@ function safeParseJson(str: string): Record<string, unknown> {
   } catch {
     return { raw: str };
   }
+}
+
+function firstStringArg(
+  args: Record<string, unknown>,
+  keys: string[],
+): string | undefined {
+  for (const key of keys) {
+    const value = args[key];
+    if (typeof value === 'string' && value.trim().length > 0) {
+      return value;
+    }
+  }
+  return undefined;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function buildToolResultText(
+  output: Record<string, unknown> | undefined,
+  dispatch: SubAgentDispatch,
+): string {
+  const summary = typeof output?.['summary'] === 'string' ? output['summary'] : null;
+  if (!summary) {
+    return dispatch.status === 'completed' ? 'Operation completed.' : `Error: ${dispatch.error}`;
+  }
+
+  const needsClarification = output?.['needsClarification'] === true;
+  const clarificationQuestion = typeof output?.['clarificationQuestion'] === 'string'
+    ? output['clarificationQuestion']
+    : null;
+  if (needsClarification && clarificationQuestion) {
+    return `${summary}\n\n${clarificationQuestion}`;
+  }
+
+  return summary;
 }

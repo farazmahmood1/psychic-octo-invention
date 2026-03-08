@@ -138,6 +138,27 @@ describe('globalErrorHandler', () => {
     });
   });
 
+  it('returns 400 INVALID_JSON for malformed JSON body', () => {
+    const err = Object.assign(new SyntaxError('Unexpected token'), {
+      status: 400,
+      statusCode: 400,
+      type: 'entity.parse.failed',
+    });
+    const req = createMockRequest();
+    const { res, getStatus, getJson } = createMockResponse();
+    const next = vi.fn();
+
+    globalErrorHandler(err, req as any, res as any, next);
+
+    expect(getStatus()).toBe(400);
+    expect(getJson()).toEqual({
+      error: {
+        code: 'INVALID_JSON',
+        message: 'Malformed JSON request body',
+      },
+    });
+  });
+
   it('does not leak stack traces in error response', () => {
     const err = new Error('DB connection failed');
     const req = createMockRequest();

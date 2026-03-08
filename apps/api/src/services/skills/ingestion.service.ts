@@ -1,4 +1,5 @@
 import type { SkillIngestInput, DetectedRisk, VettingResult } from '@openclaw/shared';
+import type { Prisma } from '@prisma/client';
 import { HTTP_STATUS } from '@openclaw/shared';
 import { logger } from '@openclaw/config';
 import { prisma } from '../../db/client.js';
@@ -31,6 +32,8 @@ export async function ingestSkill(
   actorId: string,
   ip: string,
 ): Promise<IngestionResult> {
+  const versionConfig = buildVersionConfig(input.metadata, input.source);
+
   // 1. Compute code hash
   const codeHash = computeCodeHash(input.source);
 
@@ -92,7 +95,7 @@ export async function ingestSkill(
           sourceType: input.sourceType,
           sourceUrl: input.sourceUrl,
           sourceRef: input.sourceRef,
-          metadata: input.metadata as any,
+          metadata: (input.metadata ?? null) as Prisma.InputJsonValue,
         },
       });
     } else {
@@ -105,7 +108,7 @@ export async function ingestSkill(
           sourceUrl: input.sourceUrl,
           sourceRef: input.sourceRef,
           enabled: false,
-          metadata: input.metadata as any,
+          metadata: (input.metadata ?? null) as Prisma.InputJsonValue,
         },
       });
     }
@@ -116,7 +119,7 @@ export async function ingestSkill(
         skillId: skill.id,
         version: input.version,
         codeHash,
-        config: input.metadata as any,
+        config: versionConfig,
       },
     });
 
@@ -126,8 +129,8 @@ export async function ingestSkill(
         skillVersionId: version.id,
         result: vettingResult,
         reviewerType: 'system',
-        reasons: evaluation.reasons as any,
-        detectedRisks: allRisks as any,
+        reasons: evaluation.reasons as unknown as Prisma.InputJsonValue,
+        detectedRisks: allRisks as unknown as Prisma.InputJsonValue,
         codeHash,
       },
     });
@@ -153,13 +156,17 @@ export async function ingestSkill(
     targetId: result.skillId,
     ipAddress: ip,
     metadata: {
+      skillSlug: input.slug,
+      skillName: input.displayName,
       slug: input.slug,
       version: input.version,
       codeHash,
       vettingResult,
+      reason: evaluation.reasons.join('; '),
       risksDetected: allRisks.length,
       blockingRisks: evaluation.blockingRisks.length,
-    } as any,
+      warningRisks: evaluation.warningRisks.length,
+    } as Prisma.InputJsonValue,
   });
 
   if (vettingResult === 'failed') {
@@ -177,4 +184,14 @@ export async function ingestSkill(
     detectedRisks: allRisks,
     reasons: evaluation.reasons,
   };
+}
+
+function buildVersionConfig(
+  metadata: Record<string, unknown> | undefined,
+  source: string,
+): Prisma.InputJsonValue {
+  return {
+    ...(metadata ?? {}),
+    __source: source,
+  } as Prisma.InputJsonValue;
 }

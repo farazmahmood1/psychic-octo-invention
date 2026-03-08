@@ -45,6 +45,8 @@ export interface MessageRecord {
   status: MessageStatus;
   content: string;
   attachments: unknown[] | null;
+  metadata: Record<string, unknown> | null;
+  tokenUsage: number | null;
   createdAt: string;
 }
 
@@ -111,6 +113,9 @@ export interface JobSummary {
   status: JobStatus;
   attempts: number;
   maxAttempts: number;
+  lastError: string | null;
+  idempotencyKey: string | null;
+  updatedAt: string;
   createdAt: string;
   startedAt: string | null;
   completedAt: string | null;

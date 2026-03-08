@@ -1,5 +1,7 @@
 # Final Handoff Document
 
+> Release note: use [handoff-summary.md](./handoff-summary.md) and [demo-checklist.md](./demo-checklist.md) for the final submission/handoff script. This document remains as extended reference material and may include historical test-count/lint assumptions.
+
 ## System Overview
 
 OpenClaw Admin System is a production-ready AI-powered admin platform with:

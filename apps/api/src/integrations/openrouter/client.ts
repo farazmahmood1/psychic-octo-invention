@@ -14,6 +14,20 @@ const REQUEST_TIMEOUT_MS = 60_000;
 const MAX_RETRIES = 2;
 const RETRY_DELAY_MS = 1_000;
 
+interface ModelPricing {
+  model: string;
+  inputPerMillionUsd: number;
+  outputPerMillionUsd: number;
+}
+
+const MODEL_PRICING_TABLE: ModelPricing[] = [
+  { model: 'google/gemini-2.5-flash', inputPerMillionUsd: 0.1, outputPerMillionUsd: 0.4 },
+  { model: 'google/gemini-2.5-pro', inputPerMillionUsd: 1.25, outputPerMillionUsd: 5 },
+  { model: 'anthropic/claude-sonnet-4', inputPerMillionUsd: 3, outputPerMillionUsd: 15 },
+  { model: 'anthropic/claude-opus-4', inputPerMillionUsd: 15, outputPerMillionUsd: 75 },
+  { model: 'openai/gpt-4o', inputPerMillionUsd: 5, outputPerMillionUsd: 15 },
+];
+
 /**
  * OpenRouter LLM provider.
  * Wraps the OpenRouter chat completions API (OpenAI-compatible).
@@ -169,7 +183,11 @@ export class OpenRouterProvider implements LlmProvider {
       promptTokens: data.usage?.prompt_tokens ?? 0,
       completionTokens: data.usage?.completion_tokens ?? 0,
       totalTokens: data.usage?.total_tokens ?? 0,
-      estimatedCostUsd: null,
+      estimatedCostUsd: estimateCostUsd(
+        data.model ?? requestModel,
+        data.usage?.prompt_tokens ?? 0,
+        data.usage?.completion_tokens ?? 0,
+      ),
     };
 
     return {
@@ -209,6 +227,51 @@ interface OpenRouterResponse {
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function estimateCostUsd(
+  model: string,
+  promptTokens: number,
+  completionTokens: number,
+): number | null {
+  const pricing = resolveModelPricing(model);
+  if (!pricing) return null;
+
+  const promptCost = (promptTokens / 1_000_000) * pricing.inputPerMillionUsd;
+  const completionCost = (completionTokens / 1_000_000) * pricing.outputPerMillionUsd;
+  return Number((promptCost + completionCost).toFixed(8));
+}
+
+function resolveModelPricing(model: string): ModelPricing | null {
+  const normalized = normalizeModelName(model);
+
+  const exact = MODEL_PRICING_TABLE.find((entry) => normalizeModelName(entry.model) === normalized);
+  if (exact) {
+    return exact;
+  }
+
+  if (normalized.includes('claude-opus')) {
+    return MODEL_PRICING_TABLE.find((entry) => entry.model === 'anthropic/claude-opus-4') ?? null;
+  }
+  if (normalized.includes('claude-sonnet')) {
+    return MODEL_PRICING_TABLE.find((entry) => entry.model === 'anthropic/claude-sonnet-4') ?? null;
+  }
+  if (normalized.includes('gemini-2.5-flash')) {
+    return MODEL_PRICING_TABLE.find((entry) => entry.model === 'google/gemini-2.5-flash') ?? null;
+  }
+  if (normalized.includes('gemini-2.5-pro')) {
+    return MODEL_PRICING_TABLE.find((entry) => entry.model === 'google/gemini-2.5-pro') ?? null;
+  }
+  if (normalized.includes('gpt-4o')) {
+    return MODEL_PRICING_TABLE.find((entry) => entry.model === 'openai/gpt-4o') ?? null;
+  }
+
+  logger.warn({ model }, 'No pricing entry for model, cost estimation unavailable');
+  return null;
+}
+
+function normalizeModelName(model: string): string {
+  return model.trim().toLowerCase().replace(/:free$/, '');
 }
 
 /** Singleton OpenRouter provider instance */

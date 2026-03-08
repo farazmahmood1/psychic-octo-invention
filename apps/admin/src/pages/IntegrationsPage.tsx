@@ -15,10 +15,11 @@ import {
 import type { ReactNode } from 'react';
 
 interface IntegrationHealth {
-  name: string;
-  status: 'connected' | 'disconnected' | 'error' | 'not_configured';
-  lastChecked: string | null;
-  details?: string;
+  key: string;
+  label: string;
+  status: 'healthy' | 'degraded' | 'unconfigured' | 'error';
+  checkedAt: string;
+  message: string | null;
 }
 
 interface IntegrationsResponse {
@@ -81,13 +82,13 @@ const INTEGRATIONS: IntegrationDef[] = [
 
 function statusVariant(status: string) {
   switch (status) {
-    case 'connected':
+    case 'healthy':
       return 'success' as const;
-    case 'disconnected':
+    case 'degraded':
       return 'warning' as const;
     case 'error':
       return 'destructive' as const;
-    case 'not_configured':
+    case 'unconfigured':
       return 'muted' as const;
     default:
       return 'outline' as const;
@@ -96,14 +97,14 @@ function statusVariant(status: string) {
 
 function statusLabel(status: string): string {
   switch (status) {
-    case 'connected':
-      return 'Connected';
-    case 'disconnected':
-      return 'Disconnected';
+    case 'healthy':
+      return 'Healthy';
+    case 'degraded':
+      return 'Degraded';
     case 'error':
       return 'Error';
-    case 'not_configured':
-      return 'Not Configured';
+    case 'unconfigured':
+      return 'Unconfigured';
     default:
       return status;
   }
@@ -116,7 +117,7 @@ export function IntegrationsPage() {
   );
 
   const healthMap = new Map(
-    (data?.data ?? []).map((h) => [h.name, h]),
+    (data?.data ?? []).map((h) => [h.key, h]),
   );
 
   return (
@@ -143,20 +144,20 @@ export function IntegrationsPage() {
                   {loading ? (
                     <Skeleton className="h-5 w-20" />
                   ) : (
-                    <Badge variant={statusVariant(health?.status ?? 'not_configured')}>
-                      {statusLabel(health?.status ?? 'not_configured')}
+                    <Badge variant={statusVariant(health?.status ?? 'unconfigured')}>
+                      {statusLabel(health?.status ?? 'unconfigured')}
                     </Badge>
                   )}
                 </div>
               </CardHeader>
               <CardContent>
                 <CardDescription>{integration.description}</CardDescription>
-                {health?.details && (
-                  <p className="mt-2 text-xs text-muted-foreground">{health.details}</p>
+                {health?.message && (
+                  <p className="mt-2 text-xs text-muted-foreground">{health.message}</p>
                 )}
-                {health?.lastChecked && (
+                {health?.checkedAt && (
                   <p className="mt-2 text-xs text-muted-foreground">
-                    Last checked: {new Date(health.lastChecked).toLocaleString()}
+                    Last checked: {new Date(health.checkedAt).toLocaleString()}
                   </p>
                 )}
               </CardContent>

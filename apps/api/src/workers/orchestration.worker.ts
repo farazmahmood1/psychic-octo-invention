@@ -1,7 +1,7 @@
 import { logger } from '@openclaw/config';
-import type { OrchestrationJobPayload, OrchestrationJobResult } from '../jobs/index.js';
-import { toJobResult, toJobError } from '../jobs/index.js';
+import { QUEUES, toJobResult, toJobError, type OrchestrationJobPayload, type OrchestrationJobResult } from '../jobs/index.js';
 import { executeEvent } from '../orchestration/index.js';
+import { getQueue } from '../queues/index.js';
 
 /**
  * Process an orchestration job.
@@ -55,10 +55,25 @@ export async function enqueueOrchestration(
   event: OrchestrationJobPayload['event'],
   idempotencyKey?: string,
 ): Promise<OrchestrationJobResult> {
-  // In production with BullMQ:
-  //   await orchestrationQueue.add('process', { event, idempotencyKey });
-  //   return { success: true, ... }; // result comes async
-  //
-  // For now, process synchronously:
+  const queue = getQueue(QUEUES.ORCHESTRATION);
+  if (queue) {
+    await queue.add(
+      'process',
+      { event, idempotencyKey },
+      {
+        ...(idempotencyKey ? { jobId: `orchestration:${idempotencyKey}` } : {}),
+      },
+    );
+
+    return {
+      success: true,
+      conversationId: null,
+      messageId: null,
+      model: null,
+      warnings: [],
+      error: null,
+    };
+  }
+
   return processOrchestrationJob({ event, idempotencyKey });
 }

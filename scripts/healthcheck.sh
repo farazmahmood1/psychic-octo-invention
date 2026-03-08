@@ -17,5 +17,8 @@ READY=$(curl -s "$BASE_URL/health/ready")
 STATUS=$(echo "$READY" | node -pe "JSON.parse(require('fs').readFileSync('/dev/stdin','utf8')).status" 2>/dev/null || echo "error")
 if [ "$STATUS" = "ready" ]; then echo "OK"; else echo "DEGRADED: $READY"; fi
 
+QUEUE_MODE=$(echo "$READY" | node -pe "JSON.parse(require('fs').readFileSync('/dev/stdin','utf8')).queueMode || 'unknown'" 2>/dev/null || echo "unknown")
+echo "  queue mode: $QUEUE_MODE"
+
 echo ""
 echo "Health check complete."

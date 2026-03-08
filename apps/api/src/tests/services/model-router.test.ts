@@ -42,6 +42,21 @@ describe('Model Router', () => {
       expect(decision.signals.hasAttachments).toBe(false);
       expect(decision.signals.estimatedComplexity).toBe('low');
     });
+
+    it('keeps cheap tier when tools are available but not needed', async () => {
+      const event = createSimpleInboundEvent();
+      const tools = [
+        { name: 'ghl_crm', description: 'CRM operations', parameters: {} },
+        { name: 'bookkeeping_receipt', description: 'Receipt processing', parameters: {} },
+        { name: 'lead_followup', description: 'Lead follow-up', parameters: {} },
+      ];
+
+      const decision = await routeModel(event, tools);
+
+      expect(decision.signals.requiresToolUse).toBe(false);
+      expect(decision.tier).toBe('cheap');
+      expect(decision.model).toBe('google/gemini-2.5-flash');
+    });
   });
 
   describe('STORY-T4: complex task escalates', () => {
@@ -57,6 +72,28 @@ describe('Model Router', () => {
       const event = createSimpleInboundEvent();
       event.text = 'Can you update my contact information in the CRM?';
       const tools = [{ name: 'ghl_crm', description: 'CRM operations', parameters: {} }];
+
+      const decision = await routeModel(event, tools);
+
+      expect(decision.signals.requiresToolUse).toBe(true);
+      expect(['standard', 'strong']).toContain(decision.tier);
+    });
+
+    it('detects natural CRM update phrasing without explicit "contact" keyword', async () => {
+      const event = createSimpleInboundEvent();
+      event.text = "Update John Doe's phone number to 555-0199";
+      const tools = [{ name: 'ghl_crm', description: 'CRM operations', parameters: {} }];
+
+      const decision = await routeModel(event, tools);
+
+      expect(decision.signals.requiresToolUse).toBe(true);
+      expect(['standard', 'strong']).toContain(decision.tier);
+    });
+
+    it('detects bookkeeping category-only reply as tool-use context', async () => {
+      const event = createSimpleInboundEvent();
+      event.text = 'Client Meals';
+      const tools = [{ name: 'bookkeeping_receipt', description: 'Receipt processing', parameters: {} }];
 
       const decision = await routeModel(event, tools);
 

@@ -179,21 +179,62 @@ async function handleGetContact(input: GhlSubAgentInput): Promise<GhlSubAgentOut
 // ── Update Contact ─────────────────────────────────────────
 
 async function handleUpdateContact(input: GhlSubAgentInput): Promise<GhlSubAgentOutput> {
-  const contactId = input.contactId?.trim();
+  const query = input.query?.trim();
+  let contactId = input.contactId?.trim();
   const updates = input.updates;
 
   if (!contactId) {
-    // Need to search first
-    if (input.query) {
+    if (!query) {
       return {
         success: false,
         action: 'update_contact',
-        summary: 'Cannot update without a specific contact ID. Please search for the contact first to resolve their identity.',
-        error: 'Missing contactId — search first',
-        needsClarification: true,
-        clarificationQuestion: 'I need to find the exact contact first. Let me search for them.',
+        summary: 'No contact ID or contact query was provided for this update.',
+        error: 'Missing contactId and query',
       };
     }
+
+    try {
+      const searchResult = await searchContacts(query);
+      if (searchResult.total === 0) {
+        return {
+          success: false,
+          action: 'update_contact',
+          summary: `No contacts found matching "${query}", so I could not apply the update.`,
+          error: 'Contact not found',
+        };
+      }
+
+      if (searchResult.total > 1) {
+        const names = searchResult.contacts
+          .slice(0, 5)
+          .map((c, i) => `${i + 1}. ${formatContactName(c)} (${c.email ?? c.phone ?? c.id})`)
+          .join('\n');
+        return {
+          success: false,
+          action: 'update_contact',
+          summary: `Found ${searchResult.total} contacts matching "${query}":\n${names}`,
+          candidates: searchResult.contacts.slice(0, 5),
+          needsClarification: true,
+          clarificationQuestion: `Multiple contacts match "${query}". Which one should I update?`,
+          error: 'Ambiguous contact match',
+        };
+      }
+
+      contactId = searchResult.contacts[0]?.id?.trim();
+      if (!contactId) {
+        return {
+          success: false,
+          action: 'update_contact',
+          summary: `I found a contact for "${query}" but could not resolve a valid contact ID.`,
+          error: 'Invalid contact ID from search',
+        };
+      }
+    } catch (err) {
+      return handleGhlError(err, 'update_contact', { query, updates });
+    }
+  }
+
+  if (!contactId) {
     return {
       success: false,
       action: 'update_contact',
@@ -255,7 +296,7 @@ async function handleUpdateContact(input: GhlSubAgentInput): Promise<GhlSubAgent
       return {
         success: true,
         action: 'update_contact',
-        summary: `No changes needed — ${formatContactName(currentContact)}'s fields already have the requested values.`,
+        summary: `No changes needed - ${formatContactName(currentContact)}'s fields already have the requested values.`,
         contact: currentContact,
         changedFields: {},
       };
@@ -277,7 +318,7 @@ async function handleUpdateContact(input: GhlSubAgentInput): Promise<GhlSubAgent
 
     // Build confirmation message
     const changeLines = Object.entries(changedFields)
-      .map(([field, { from, to }]) => `- ${field}: "${from ?? 'empty'}" → "${to}"`)
+      .map(([field, { from, to }]) => `- ${field}: "${from ?? 'empty'}" -> "${to}"`)
       .join('\n');
 
     return {
@@ -288,7 +329,7 @@ async function handleUpdateContact(input: GhlSubAgentInput): Promise<GhlSubAgent
       changedFields,
     };
   } catch (err) {
-    return handleGhlError(err, 'update_contact', { contactId, updates });
+    return handleGhlError(err, 'update_contact', { contactId, query, updates });
   }
 }
 
@@ -329,6 +370,15 @@ async function handleGhlError(
       action,
       summary: 'The CRM API is temporarily rate-limited. Please try again in a moment.',
       error: 'Rate limited',
+    };
+  }
+
+  if (error.message.includes('GHL API token is not configured')) {
+    return {
+      success: false,
+      action,
+      summary: 'The CRM integration is not configured. Set a real GHL_API_TOKEN before retrying.',
+      error: 'GHL not configured',
     };
   }
 

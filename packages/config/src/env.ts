@@ -77,13 +77,20 @@ function loadEnv(): Env {
 
 export const env = loadEnv();
 
+function hasConfiguredValue(value: string | undefined): boolean {
+  if (!value) return false;
+  const normalized = value.trim().toLowerCase();
+  if (!normalized) return false;
+  return !normalized.startsWith('change-me');
+}
+
 /** Check whether a specific integration has its required config */
 export const integrationConfigured = {
   redis: () => !!env.REDIS_URL,
-  openrouter: () => !!env.OPENROUTER_API_KEY,
-  telegram: () => !!env.TELEGRAM_BOT_TOKEN && !!env.TELEGRAM_WEBHOOK_SECRET,
+  openrouter: () => hasConfiguredValue(env.OPENROUTER_API_KEY),
+  telegram: () => hasConfiguredValue(env.TELEGRAM_BOT_TOKEN) && hasConfiguredValue(env.TELEGRAM_WEBHOOK_SECRET),
   email: () => !!env.SMTP_HOST && !!env.SMTP_USER && !!env.SMTP_PASS && !!env.SMTP_FROM,
-  emailWebhook: () => !!env.INBOUND_EMAIL_WEBHOOK_SECRET,
-  ghl: () => !!env.GHL_API_TOKEN,
+  emailWebhook: () => hasConfiguredValue(env.INBOUND_EMAIL_WEBHOOK_SECRET),
+  ghl: () => hasConfiguredValue(env.GHL_API_TOKEN),
   googleSheets: () => !!env.GOOGLE_SERVICE_ACCOUNT_JSON && !!env.GOOGLE_SHEETS_BOOKKEEPING_SPREADSHEET_ID,
 } as const;

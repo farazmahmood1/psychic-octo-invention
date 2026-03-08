@@ -26,6 +26,11 @@ async function callApi<T>(
   path: string,
   body?: Record<string, unknown>,
 ): Promise<{ data: T; statusCode: number; latencyMs: number }> {
+  const token = env.GHL_API_TOKEN?.trim();
+  if (!token || token.toLowerCase().startsWith('change-me')) {
+    throw new GhlApiError('GHL API token is not configured', 503, 0);
+  }
+
   let lastError: Error | null = null;
   const startTime = Date.now();
 
@@ -36,7 +41,7 @@ async function callApi<T>(
 
       const url = `${env.GHL_API_BASE_URL}${path}`;
       const headers: Record<string, string> = {
-        Authorization: `Bearer ${env.GHL_API_TOKEN}`,
+        Authorization: `Bearer ${token}`,
         'Content-Type': 'application/json',
       };
 

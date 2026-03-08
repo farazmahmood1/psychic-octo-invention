@@ -114,7 +114,7 @@ export async function getIntegrationHealth(): Promise<IntegrationHealth[]> {
       key: def.key,
       label: def.label,
       status: 'healthy',
-      message: 'Configured. No connectivity issues detected.',
+      message: 'Configured (credential presence check). Live connectivity is validated during runtime calls.',
       checkedAt: now,
     });
   }

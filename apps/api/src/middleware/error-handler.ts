@@ -3,7 +3,19 @@ import { logger } from '@openclaw/config';
 import { HTTP_STATUS } from '@openclaw/shared';
 import { AppError } from '../utils/app-error.js';
 
-/** Centralized error handler — returns normalized API error shape */
+interface HttpLikeError extends Error {
+  status?: number;
+  statusCode?: number;
+  type?: string;
+}
+
+function getHttpStatus(err: HttpLikeError): number | undefined {
+  const status = err.statusCode ?? err.status;
+  if (typeof status !== 'number') return undefined;
+  return status >= 400 && status < 600 ? status : undefined;
+}
+
+/** Centralized error handler - returns normalized API error shape */
 export function globalErrorHandler(
   err: Error,
   req: Request,
@@ -19,6 +31,31 @@ export function globalErrorHandler(
         code: err.code,
         message: err.message,
         ...(err.details ? { details: err.details } : {}),
+      },
+    });
+    return;
+  }
+
+  const httpErr = err as HttpLikeError;
+  const status = getHttpStatus(httpErr);
+  if (status && status < 500) {
+    // body-parser marks malformed JSON payloads with this error type
+    if (httpErr.type === 'entity.parse.failed') {
+      logger.warn({ requestId, status, type: httpErr.type }, 'Malformed JSON request body');
+      res.status(HTTP_STATUS.BAD_REQUEST).json({
+        error: {
+          code: 'INVALID_JSON',
+          message: 'Malformed JSON request body',
+        },
+      });
+      return;
+    }
+
+    logger.warn({ requestId, status, message: err.message }, 'Handled HTTP error');
+    res.status(status).json({
+      error: {
+        code: 'BAD_REQUEST',
+        message: err.message || 'Invalid request',
       },
     });
     return;

@@ -5,8 +5,8 @@ import { auditRepository } from '../repositories/audit.repository.js';
 const ROUTING_KEY = 'model_routing';
 
 const DEFAULT_ROUTING: RoutingSettings = {
-  primaryModel: 'openai/gpt-4o',
-  fallbackModel: null,
+  primaryModel: 'anthropic/claude-sonnet-4',
+  fallbackModel: 'anthropic/claude-opus-4',
   maxCostPerRequestUsd: null,
   maxMonthlyBudgetUsd: null,
   routingRules: [],

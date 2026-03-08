@@ -41,7 +41,26 @@ function formatChannel(channel: string): string {
 
 function MessageBubble({ message }: { message: MessageRecord }) {
   const isInbound = message.direction === 'inbound';
-  const attachments = (message.attachments ?? []) as Array<Record<string, unknown>>;
+  const attachments = (message.attachments ?? []).filter(
+    (att): att is Record<string, unknown> => typeof att === 'object' && att !== null,
+  );
+  const metadata = message.metadata ?? {};
+
+  const routing = (metadata['routing'] as Record<string, unknown> | undefined) ?? null;
+  const memory = (metadata['memory'] as Record<string, unknown> | undefined) ?? null;
+  const usage = (metadata['usage'] as Record<string, unknown> | undefined) ?? null;
+  const execution = (metadata['execution'] as Record<string, unknown> | undefined) ?? null;
+
+  const model = typeof routing?.['model'] === 'string' ? routing['model'] : null;
+  const tier = typeof routing?.['tier'] === 'string' ? routing['tier'] : null;
+  const retrievedCount = typeof memory?.['retrievedCount'] === 'number' ? memory['retrievedCount'] : null;
+  const writtenCount = typeof memory?.['writtenCount'] === 'number' ? memory['writtenCount'] : null;
+  const totalTokens = typeof usage?.['totalTokens'] === 'number'
+    ? usage['totalTokens']
+    : message.tokenUsage;
+  const toolCallsRequested = typeof execution?.['toolCallsRequested'] === 'number'
+    ? execution['toolCallsRequested']
+    : null;
 
   return (
     <div className={cn('flex', isInbound ? 'justify-start' : 'justify-end')}>
@@ -75,6 +94,41 @@ function MessageBubble({ message }: { message: MessageRecord }) {
                   )}
                 </div>
               ))}
+            </div>
+          )}
+
+          {!isInbound && (
+            <div className="mt-2 flex flex-wrap items-center gap-1.5 text-[10px] opacity-85">
+              {tier && (
+                <Badge variant="outline" className="h-4 px-1.5 py-0 text-[10px]">
+                  {tier}
+                </Badge>
+              )}
+              {model && (
+                <Badge variant="outline" className="h-4 px-1.5 py-0 text-[10px]">
+                  {model}
+                </Badge>
+              )}
+              {totalTokens != null && (
+                <Badge variant="outline" className="h-4 px-1.5 py-0 text-[10px]">
+                  {totalTokens.toLocaleString()} tokens
+                </Badge>
+              )}
+              {toolCallsRequested != null && toolCallsRequested > 0 && (
+                <Badge variant="outline" className="h-4 px-1.5 py-0 text-[10px]">
+                  {toolCallsRequested} tool call{toolCallsRequested === 1 ? '' : 's'}
+                </Badge>
+              )}
+              {retrievedCount != null && retrievedCount > 0 && (
+                <Badge variant="outline" className="h-4 px-1.5 py-0 text-[10px]">
+                  memory +{retrievedCount}
+                </Badge>
+              )}
+              {writtenCount != null && writtenCount > 0 && (
+                <Badge variant="outline" className="h-4 px-1.5 py-0 text-[10px]">
+                  saved {writtenCount}
+                </Badge>
+              )}
             </div>
           )}
         </div>

@@ -3,15 +3,25 @@ import { createApp } from './app.js';
 import { prisma } from './db/client.js';
 import { closeRedis } from './db/redis.js';
 import { closeQueues } from './queues/index.js';
+import { resumePendingEmailJobs } from './workers/index.js';
+import { logRuntimeWarnings } from './config/runtime-warnings.js';
 
 const PORT = Number(process.env['PORT']) || 4000;
 const SHUTDOWN_TIMEOUT_MS = 15_000;
+const EMAIL_RECOVERY_INTERVAL_MS = 5 * 60 * 1000;
 
 const app = createApp();
 
 const server = app.listen(PORT, () => {
   logger.info({ port: PORT, env: process.env['NODE_ENV'] }, `API server started on port ${PORT}`);
+  logRuntimeWarnings('api');
+  void runEmailRecoverySweep();
 });
+
+const recoveryInterval = setInterval(() => {
+  void runEmailRecoverySweep();
+}, EMAIL_RECOVERY_INTERVAL_MS);
+recoveryInterval.unref();
 
 // Keep-alive and header timeouts for load balancer compatibility
 server.keepAliveTimeout = 65_000;
@@ -23,6 +33,7 @@ let isShuttingDown = false;
 async function shutdown(signal: string) {
   if (isShuttingDown) return;
   isShuttingDown = true;
+  clearInterval(recoveryInterval);
 
   logger.info({ signal }, 'Received shutdown signal, closing gracefully...');
 
@@ -59,8 +70,12 @@ async function shutdown(signal: string) {
   }
 }
 
-process.on('SIGTERM', () => shutdown('SIGTERM'));
-process.on('SIGINT', () => shutdown('SIGINT'));
+process.on('SIGTERM', () => {
+  void shutdown('SIGTERM');
+});
+process.on('SIGINT', () => {
+  void shutdown('SIGINT');
+});
 
 process.on('unhandledRejection', (reason) => {
   logger.fatal({ reason }, 'Unhandled promise rejection');
@@ -71,3 +86,14 @@ process.on('uncaughtException', (error) => {
   logger.fatal({ error }, 'Uncaught exception');
   if (!isShuttingDown) process.exit(1);
 });
+
+async function runEmailRecoverySweep(): Promise<void> {
+  try {
+    const resumedCount = await resumePendingEmailJobs();
+    if (resumedCount > 0) {
+      logger.info({ resumedCount }, 'Resumed pending email jobs from persistent store');
+    }
+  } catch (err) {
+    logger.error({ err }, 'Failed to resume pending email jobs');
+  }
+}

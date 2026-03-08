@@ -5,6 +5,7 @@ import { DataTable, type Column } from '@/components/data-table';
 import { StatusBadge } from '@/components/status-badge';
 import { Select } from '@/components/ui/select';
 import { MetricCard } from '@/components/metric-card';
+import { Badge } from '@/components/ui/badge';
 import { useApiQuery } from '@/hooks/use-api-query';
 import { Activity, CheckCircle, XCircle, Clock } from 'lucide-react';
 
@@ -47,6 +48,37 @@ function formatQueue(queue: string): string {
   return map[queue] ?? queue;
 }
 
+function renderEmailSlaBadge(job: JobSummary) {
+  if (job.queueName !== 'email-processing') {
+    return <span className="text-muted-foreground">-</span>;
+  }
+
+  const createdAtMs = new Date(job.createdAt).getTime();
+  const endMs = job.completedAt ? new Date(job.completedAt).getTime() : Date.now();
+  const elapsedMs = Math.max(0, endMs - createdAtMs);
+  const elapsedMinutes = elapsedMs / (1000 * 60);
+
+  if (job.status === 'completed') {
+    if (elapsedMinutes <= 15) {
+      return <Badge variant="success">within SLA</Badge>;
+    }
+    return <Badge variant="warning">completed late</Badge>;
+  }
+
+  if (job.status === 'failed' || job.status === 'cancelled') {
+    return <Badge variant="destructive">not met</Badge>;
+  }
+
+  if (elapsedMinutes >= 15) {
+    return <Badge variant="destructive">late</Badge>;
+  }
+  if (elapsedMinutes >= 10) {
+    return <Badge variant="warning">at risk</Badge>;
+  }
+
+  return <Badge variant="info">on track</Badge>;
+}
+
 export function JobsPage() {
   const [page, setPage] = useState(1);
   const [status, setStatus] = useState('');
@@ -78,7 +110,16 @@ export function JobsPage() {
     {
       key: 'id',
       header: 'ID',
-      render: (row) => <span className="font-mono text-xs">{row.id.slice(0, 8)}...</span>,
+      render: (row) => (
+        <div className="space-y-1">
+          <span className="font-mono text-xs">{row.id.slice(0, 8)}...</span>
+          {row.idempotencyKey && (
+            <p className="font-mono text-[10px] text-muted-foreground" title={row.idempotencyKey}>
+              key: {row.idempotencyKey.slice(0, 16)}...
+            </p>
+          )}
+        </div>
+      ),
       className: 'w-28',
     },
     {
@@ -99,15 +140,44 @@ export function JobsPage() {
       className: 'w-28',
     },
     {
+      key: 'sla',
+      header: 'Email SLA',
+      render: (row) => renderEmailSlaBadge(row),
+      className: 'w-28',
+    },
+    {
       key: 'attempts',
       header: 'Attempts',
       render: (row) => `${row.attempts}/${row.maxAttempts}`,
       className: 'w-24 text-center',
     },
     {
+      key: 'error',
+      header: 'Last Error',
+      render: (row) => {
+        if (!row.lastError) {
+          return <span className="text-muted-foreground">-</span>;
+        }
+        const shortened = row.lastError.length > 90
+          ? `${row.lastError.slice(0, 87)}...`
+          : row.lastError;
+        return (
+          <span className="text-xs text-destructive" title={row.lastError}>
+            {shortened}
+          </span>
+        );
+      },
+    },
+    {
       key: 'created',
       header: 'Created',
       render: (row) => new Date(row.createdAt).toLocaleString(),
+      className: 'w-40',
+    },
+    {
+      key: 'updated',
+      header: 'Updated',
+      render: (row) => new Date(row.updatedAt).toLocaleString(),
       className: 'w-40',
     },
     {

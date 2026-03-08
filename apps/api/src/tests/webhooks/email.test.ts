@@ -1,55 +1,35 @@
 /**
  * STORY-T2: Email thread parse and reply path.
- * Tests webhook validation, deduplication, threading, and async processing.
+ * Tests webhook validation, deduplication, and async queue handoff.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import supertest from 'supertest';
+import { env } from '@openclaw/config';
 import {
   createInboundEmailPayload,
   createThreadedEmailPayload,
-  createHtmlOnlyEmailPayload,
   EMAIL_WEBHOOK_SECRET,
 } from '../fixtures/email.fixture.js';
-import { createMockExecutionResult } from '../fixtures/orchestration.fixture.js';
-
-// Mock dependencies
-vi.mock('../../integrations/email/normalizer.js', () => ({
-  normalizeInboundEmail: vi.fn().mockReturnValue({
-    channel: 'email',
-    externalUserId: 'client@example.com',
-    externalUserName: 'Jane Client',
-    externalThreadId: '<msg-001@example.com>',
-    text: 'Hi, I need help understanding my latest invoice.',
-    attachments: [],
-    timestamp: new Date().toISOString(),
-    metadata: { emailFrom: 'client@example.com', emailSubject: 'Need help with my invoice' },
-  }),
-}));
-
-vi.mock('../../orchestration/index.js', () => ({
-  executeEvent: vi.fn().mockResolvedValue(createMockExecutionResult()),
-}));
-
-vi.mock('../../services/channels/index.js', () => ({
-  deliverToEmail: vi.fn().mockResolvedValue({ success: true, externalMessageId: null, error: null }),
-}));
 
 vi.mock('../../repositories/email-thread.repository.js', () => ({
   emailThreadRepository: {
     findEmailMessageByProviderEmailId: vi.fn().mockResolvedValue(null),
-    upsert: vi.fn().mockResolvedValue({ id: 'thread-001' }),
-    createEmailMessage: vi.fn().mockResolvedValue({ id: 'email-msg-001' }),
   },
 }));
 
-vi.mock('../../integrations/email/client.js', () => ({
-  ensureReplySubject: vi.fn((s: string) => `Re: ${s}`),
-  buildReferencesHeader: vi.fn((_refs: string, _msgId: string) => '<msg-001@example.com>'),
+vi.mock('../../workers/email-processing.worker.js', () => ({
+  enqueueEmailProcessing: vi.fn().mockResolvedValue({
+    success: true,
+    conversationId: null,
+    messageId: null,
+    replySent: false,
+    error: null,
+  }),
 }));
 
 import { emailWebhookRouter } from '../../routes/webhooks/email.js';
-import { executeEvent } from '../../orchestration/index.js';
 import { emailThreadRepository } from '../../repositories/email-thread.repository.js';
+import { enqueueEmailProcessing } from '../../workers/email-processing.worker.js';
 import express from 'express';
 
 function createWebhookApp() {
@@ -78,9 +58,10 @@ describe('Email Webhook', () => {
 
       expect(res.status).toBe(200);
       expect(res.body).toEqual({ ok: true });
+      expect(enqueueEmailProcessing).toHaveBeenCalledTimes(1);
     });
 
-    it('processes threaded reply with proper References header', async () => {
+    it('enqueues threaded email payload for worker processing', async () => {
       const payload = createThreadedEmailPayload();
 
       const res = await supertest(app)
@@ -89,9 +70,12 @@ describe('Email Webhook', () => {
         .send(payload);
 
       expect(res.status).toBe(200);
-      // Async processing — give it a tick
-      await new Promise((resolve) => setTimeout(resolve, 50));
-      expect(executeEvent).toHaveBeenCalled();
+      expect(enqueueEmailProcessing).toHaveBeenCalledWith(
+        expect.objectContaining({
+          payload,
+          idempotencyKey: payload.messageId,
+        }),
+      );
     });
   });
 
@@ -111,6 +95,22 @@ describe('Email Webhook', () => {
         .send(createInboundEmailPayload());
 
       expect(res.status).toBe(401);
+    });
+
+    it('fails closed when webhook secret is not configured', async () => {
+      const originalSecret = env.INBOUND_EMAIL_WEBHOOK_SECRET;
+      try {
+        env.INBOUND_EMAIL_WEBHOOK_SECRET = undefined;
+
+        const res = await supertest(app)
+          .post('/')
+          .set('x-email-webhook-secret', EMAIL_WEBHOOK_SECRET)
+          .send(createInboundEmailPayload());
+
+        expect(res.status).toBe(503);
+      } finally {
+        env.INBOUND_EMAIL_WEBHOOK_SECRET = originalSecret;
+      }
     });
   });
 
@@ -138,26 +138,23 @@ describe('Email Webhook', () => {
     it('skips duplicate by message-id (in-memory)', async () => {
       const payload = createInboundEmailPayload({ messageId: '<dedup-test@example.com>' });
 
-      // First
       await supertest(app)
         .post('/')
         .set('x-email-webhook-secret', EMAIL_WEBHOOK_SECRET)
         .send(payload);
 
-      await new Promise((resolve) => setTimeout(resolve, 50));
-
-      // Duplicate
       const res = await supertest(app)
         .post('/')
         .set('x-email-webhook-secret', EMAIL_WEBHOOK_SECRET)
         .send(payload);
 
       expect(res.status).toBe(200);
+      expect(enqueueEmailProcessing).toHaveBeenCalledTimes(1);
     });
 
     it('skips duplicate by DB check', async () => {
-      (emailThreadRepository.findEmailMessageByProviderEmailId as any)
-        .mockResolvedValueOnce({ id: 'existing-msg' });
+      vi.mocked(emailThreadRepository.findEmailMessageByProviderEmailId)
+        .mockResolvedValueOnce({ id: 'existing-msg' } as never);
 
       const payload = createInboundEmailPayload({ messageId: '<db-dedup@example.com>' });
 
@@ -167,8 +164,7 @@ describe('Email Webhook', () => {
         .send(payload);
 
       expect(res.status).toBe(200);
-      // Should not trigger orchestration
-      await new Promise((resolve) => setTimeout(resolve, 50));
+      expect(enqueueEmailProcessing).not.toHaveBeenCalled();
     });
   });
 });

@@ -1,4 +1,5 @@
 import type { InboundEvent } from '@openclaw/shared';
+import type { Prisma } from '@prisma/client';
 import { prisma } from '../db/client.js';
 
 /**
@@ -31,7 +32,7 @@ export async function resolveConversation(event: InboundEvent): Promise<{
         channel: event.channel,
         externalId: event.externalThreadId,
         status: 'active',
-        metadata: event.metadata as any,
+        metadata: event.metadata as unknown as Prisma.InputJsonValue,
       },
     });
   }
@@ -80,8 +81,10 @@ export const persistMessages = {
         status: 'received',
         content: event.text,
         rawContent: event.text,
-        attachments: event.attachments.length > 0 ? event.attachments as any : undefined,
-        metadata: event.metadata as any,
+        attachments: event.attachments.length > 0
+          ? event.attachments as unknown as Prisma.InputJsonValue
+          : undefined,
+        metadata: event.metadata as unknown as Prisma.InputJsonValue,
       },
     });
     return message.id;
@@ -91,6 +94,10 @@ export const persistMessages = {
     content: string,
     conversationId: string,
     _inReplyToMessageId: string,
+    options?: {
+      metadata?: Record<string, unknown>;
+      tokenUsage?: number | null;
+    },
   ): Promise<string> {
     const message = await prisma.message.create({
       data: {
@@ -98,9 +105,35 @@ export const persistMessages = {
         direction: 'outbound',
         status: 'pending',
         content,
+        metadata: (options?.metadata ?? null) as Prisma.InputJsonValue,
+        tokenUsage: options?.tokenUsage ?? null,
       },
     });
     return message.id;
+  },
+
+  async mergeMetadata(
+    messageId: string,
+    patch: Record<string, unknown>,
+    tokenUsage?: number | null,
+  ): Promise<void> {
+    const existing = await prisma.message.findUnique({
+      where: { id: messageId },
+      select: { metadata: true },
+    });
+
+    const merged: Record<string, unknown> = {
+      ...((existing?.metadata as Record<string, unknown> | null) ?? {}),
+      ...patch,
+    };
+
+    await prisma.message.update({
+      where: { id: messageId },
+      data: {
+        metadata: merged as Prisma.InputJsonValue,
+        ...(tokenUsage !== undefined ? { tokenUsage } : {}),
+      },
+    });
   },
 };
 

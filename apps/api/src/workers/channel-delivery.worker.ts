@@ -3,6 +3,8 @@ import type { ChannelDeliveryPayload } from '../jobs/channel-delivery.job.js';
 import type { ChannelDeliveryJobResult } from '../jobs/channel-delivery.job.js';
 import { toDeliveryResult, toDeliveryError } from '../jobs/channel-delivery.job.js';
 import { deliverToTelegram, deliverToEmail } from '../services/channels/index.js';
+import { QUEUES } from '../jobs/index.js';
+import { getQueue } from '../queues/index.js';
 
 /**
  * Process a channel delivery job.
@@ -47,7 +49,7 @@ export async function processDeliveryJob(
       }
 
       default:
-        return { success: false, externalMessageId: null, error: `Unknown channel: ${payload.channel}` };
+        return { success: false, externalMessageId: null, error: 'Unknown channel' };
     }
   } catch (err) {
     const error = err instanceof Error ? err : new Error(String(err));
@@ -66,6 +68,27 @@ export async function processDeliveryJob(
  */
 export async function enqueueDelivery(
   payload: ChannelDeliveryPayload,
+  options?: { waitForResult?: boolean },
 ): Promise<ChannelDeliveryJobResult> {
+  const waitForResult = options?.waitForResult === true;
+  const queue = getQueue(QUEUES.CHANNEL_DELIVERY);
+
+  if (queue && !waitForResult) {
+    const dedupeKey = `${payload.channel}:${payload.conversationId}:${payload.messageId}`;
+    await queue.add(
+      'deliver',
+      payload,
+      {
+        jobId: `delivery:${dedupeKey}`,
+      },
+    );
+
+    return {
+      success: true,
+      externalMessageId: null,
+      error: null,
+    };
+  }
+
   return processDeliveryJob(payload);
 }

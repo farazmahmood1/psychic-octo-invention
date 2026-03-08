@@ -27,11 +27,36 @@ const MAX_RETRIES = 2;
 let tokenCache: TokenCache | null = null;
 
 function parseServiceAccount(): ServiceAccountCredentials {
+  let parsed: unknown;
   try {
-    return JSON.parse(env.GOOGLE_SERVICE_ACCOUNT_JSON ?? '{}') as ServiceAccountCredentials;
+    parsed = JSON.parse(env.GOOGLE_SERVICE_ACCOUNT_JSON ?? '{}');
   } catch {
     throw new Error('Invalid GOOGLE_SERVICE_ACCOUNT_JSON — must be valid JSON');
   }
+
+  if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
+    throw new Error('GOOGLE_SERVICE_ACCOUNT_JSON must be a JSON object');
+  }
+
+  const record = parsed as Record<string, unknown>;
+  const clientEmail = typeof record['client_email'] === 'string' ? record['client_email'].trim() : '';
+  const privateKeyRaw = typeof record['private_key'] === 'string' ? record['private_key'] : '';
+  const tokenUri = typeof record['token_uri'] === 'string' ? record['token_uri'].trim() : undefined;
+
+  if (!clientEmail || !privateKeyRaw) {
+    throw new Error('GOOGLE_SERVICE_ACCOUNT_JSON must include client_email and private_key');
+  }
+
+  const privateKey = privateKeyRaw.replace(/\\n/g, '\n').trim();
+  if (!privateKey.includes('BEGIN PRIVATE KEY')) {
+    throw new Error('GOOGLE_SERVICE_ACCOUNT_JSON.private_key must be a PEM private key');
+  }
+
+  return {
+    client_email: clientEmail,
+    private_key: privateKey,
+    token_uri: tokenUri,
+  };
 }
 
 /**

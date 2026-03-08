@@ -1,13 +1,16 @@
 import { logger } from '@openclaw/config';
-import type {
-  FollowUpSubAgentInput,
-  FollowUpSubAgentOutput,
-  FollowUpRecommendation as FollowUpRec,
-  SubAgentDispatch,
+import {
+  FOLLOWUP_DEFAULT_STALE_DAYS,
+  type ChannelDeliveryPayload,
+  type FollowUpSubAgentInput,
+  type FollowUpSubAgentOutput,
+  type FollowUpRecommendation as FollowUpRec,
+  type SubAgentDispatch,
 } from '@openclaw/shared';
-import { FOLLOWUP_DEFAULT_STALE_DAYS } from '@openclaw/shared';
 import { followUpRecommendationRepository } from '../../../repositories/followup-recommendation.repository.js';
 import { providerRegistry } from '../../llm/index.js';
+import { prisma } from '../../../db/client.js';
+import { enqueueDelivery } from '../../../workers/channel-delivery.worker.js';
 
 /** Cheap model for drafting follow-up messages. */
 const DRAFT_MODEL = 'google/gemini-2.5-flash';
@@ -19,7 +22,7 @@ const DRAFT_MODEL = 'google/gemini-2.5-flash';
  *   1. find_stale: Identify conversations with no reply past a threshold
  *   2. draft_followup: Generate a follow-up message for a specific contact
  *   3. list_pending: List pending recommendations for this conversation
- *   4. approve_send: Mark a recommendation as approved (actual sending is deferred)
+ *   4. approve_send: Approve and send a recommendation through channel delivery
  *   5. dismiss: Dismiss a recommendation
  *
  * Safety: No messages are auto-sent. All follow-ups require explicit approval.
@@ -47,9 +50,9 @@ export async function executeFollowUpTask(
     default:
       return {
         success: false,
-        action: input.action,
-        summary: `Unsupported follow-up action: "${input.action}". Supported: find_stale, draft_followup, list_pending, approve_send, dismiss.`,
-        error: `Unsupported action: ${input.action}`,
+        action: 'unsupported',
+        summary: 'Unsupported follow-up action. Supported: find_stale, draft_followup, list_pending, approve_send, dismiss.',
+        error: 'Unsupported action',
       };
   }
 }
@@ -60,13 +63,10 @@ export async function executeFollowUpTask(
 export async function processFollowUpDispatch(
   dispatch: SubAgentDispatch,
 ): Promise<SubAgentDispatch> {
-  const input = dispatch.input as unknown as FollowUpSubAgentInput;
-  const context = (dispatch.input as Record<string, unknown>)['_context'] as {
-    conversationId?: string;
-    externalUserId?: string;
-    sourceChannel?: string;
-    sourceMessageId?: string;
-  } | undefined;
+  const rawInput = dispatch.input;
+  const input = toFollowUpInput(rawInput);
+  const contextValue = rawInput['_context'];
+  const context = isFollowUpContext(contextValue) ? contextValue : undefined;
 
   try {
     const output = await executeFollowUpTask(input, context);
@@ -190,7 +190,7 @@ async function handleDraftFollowUp(
       reason: input.context ? 'custom' : 'no_reply',
       reasonDetail: reason,
       suggestedMessage,
-      priority: priority as 'low' | 'medium' | 'high',
+      priority,
       nextActionDate,
       channel: context?.sourceChannel,
     });
@@ -305,24 +305,103 @@ async function handleApproveSend(
     };
   }
 
-  // Mark as approved — actual sending is handled by a future delivery integration
+  if (!record.conversationId) {
+    return {
+      success: false,
+      action: 'approve_send',
+      summary: 'Cannot send this follow-up because it is not linked to a conversation.',
+      error: 'Missing conversationId on recommendation',
+    };
+  }
+
+  const conversation = await prisma.conversation.findUnique({
+    where: { id: record.conversationId },
+    select: { channel: true },
+  });
+
+  if (!conversation) {
+    return {
+      success: false,
+      action: 'approve_send',
+      summary: 'Cannot send this follow-up because the source conversation was not found.',
+      error: 'Conversation not found',
+    };
+  }
+
+  const deliveryChannel = resolveDeliveryChannel(input.sendChannel, record.channel, conversation.channel);
+  if (!deliveryChannel) {
+    return {
+      success: false,
+      action: 'approve_send',
+      summary: 'This follow-up can only be sent through Telegram or email.',
+      error: 'Unsupported delivery channel',
+    };
+  }
+
+  const outboundMessage = await prisma.message.create({
+    data: {
+      conversationId: record.conversationId,
+      direction: 'outbound',
+      status: 'pending',
+      content: record.suggestedMessage,
+      metadata: {
+        followUpRecommendationId: record.id,
+        followUpAction: 'approve_send',
+      },
+    },
+  });
+
   await followUpRecommendationRepository.updateStatus(record.id, 'approved');
 
+  const payload: ChannelDeliveryPayload = {
+    channel: deliveryChannel,
+    conversationId: record.conversationId,
+    messageId: outboundMessage.id,
+    content: record.suggestedMessage,
+    metadata: {
+      followUpRecommendationId: record.id,
+      followUpAction: 'approve_send',
+    },
+  };
+
+  const deliveryResult = await enqueueDelivery(payload, { waitForResult: true });
+  if (!deliveryResult.success) {
+    await prisma.message.update({
+      where: { id: outboundMessage.id },
+      data: { status: 'failed' },
+    }).catch((err) => {
+      logger.warn({ err, recommendationId: record.id }, 'Failed to set follow-up message status to failed');
+    });
+
+    return {
+      success: false,
+      action: 'approve_send',
+      summary: 'Follow-up was approved but failed to send. Please retry.',
+      error: deliveryResult.error ?? 'Delivery failed',
+      recommendation: { ...mapToOutput(record), status: 'approved' },
+    };
+  }
+
+  const sentRecord = await followUpRecommendationRepository.updateStatus(record.id, 'sent');
+
   logger.info(
-    { recommendationId, contactIdentifier: record.contactIdentifier },
-    'Follow-up recommendation approved',
+    {
+      recommendationId,
+      contactIdentifier: record.contactIdentifier,
+      channel: deliveryChannel,
+      messageId: outboundMessage.id,
+      externalMessageId: deliveryResult.externalMessageId,
+    },
+    'Follow-up recommendation approved and sent',
   );
 
   return {
     success: true,
     action: 'approve_send',
-    summary: `Follow-up for ${record.contactName ?? record.contactIdentifier} has been approved. It will be sent via ${input.sendChannel ?? record.channel ?? 'the original channel'} when delivery is next processed.\n\nMessage: "${record.suggestedMessage}"`,
-    recommendation: { ...mapToOutput(record), status: 'approved' },
+    summary: `Follow-up for ${record.contactName ?? record.contactIdentifier} was sent via ${deliveryChannel}.\n\nMessage: "${record.suggestedMessage}"`,
+    recommendation: mapToOutput(sentRecord),
   };
 }
-
-// ── Dismiss ──────────────────────────────────────────────────
-
 async function handleDismiss(
   input: FollowUpSubAgentInput,
 ): Promise<FollowUpSubAgentOutput> {
@@ -441,5 +520,70 @@ function mapToOutput(record: {
     channel: record.channel,
     status: record.status as FollowUpRec['status'],
     createdAt: record.createdAt.toISOString(),
+  };
+}
+
+function resolveDeliveryChannel(
+  requested: string | undefined,
+  recommendationChannel: string | null,
+  conversationChannel: string,
+): 'telegram' | 'email' | null {
+  const requestedChannel = normalizeChannel(requested);
+  if (requestedChannel) {
+    return requestedChannel;
+  }
+
+  const recommendationPreferred = normalizeChannel(recommendationChannel ?? undefined);
+  if (recommendationPreferred) {
+    return recommendationPreferred;
+  }
+
+  return normalizeChannel(conversationChannel);
+}
+
+function normalizeChannel(value: string | undefined): 'telegram' | 'email' | null {
+  if (!value) return null;
+  const normalized = value.trim().toLowerCase();
+  if (normalized === 'telegram' || normalized === 'email') {
+    return normalized;
+  }
+  return null;
+}
+
+function isFollowUpContext(value: unknown): value is {
+  conversationId?: string;
+  externalUserId?: string;
+  sourceChannel?: string;
+  sourceMessageId?: string;
+} {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return false;
+  }
+  return true;
+}
+
+function toFollowUpInput(rawInput: Record<string, unknown>): FollowUpSubAgentInput {
+  const actionRaw = rawInput['action'];
+  const action = typeof actionRaw === 'string'
+    && ['find_stale', 'draft_followup', 'approve_send', 'list_pending', 'dismiss'].includes(actionRaw)
+    ? actionRaw as FollowUpSubAgentInput['action']
+    : 'find_stale';
+
+  const staleDaysValue = rawInput['staleDays'];
+  const staleDays = typeof staleDaysValue === 'number' ? staleDaysValue : undefined;
+
+  const contactQuery = typeof rawInput['contactQuery'] === 'string' ? rawInput['contactQuery'] : undefined;
+  const context = typeof rawInput['context'] === 'string' ? rawInput['context'] : undefined;
+  const recommendationId =
+    typeof rawInput['recommendationId'] === 'string' ? rawInput['recommendationId'] : undefined;
+  const sendChannel = typeof rawInput['sendChannel'] === 'string' ? rawInput['sendChannel'] : undefined;
+
+  return {
+    action,
+    contactQuery,
+    staleDays,
+    context,
+    recommendationId,
+    sendChannel,
   };
 }

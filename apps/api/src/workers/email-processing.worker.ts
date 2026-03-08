@@ -1,4 +1,5 @@
 import { logger } from '@openclaw/config';
+import type { Prisma } from '@prisma/client';
 import type { EmailProcessingJobPayload, EmailProcessingJobResult } from '../jobs/email-processing.job.js';
 import { toEmailJobResult, toEmailJobError } from '../jobs/email-processing.job.js';
 import { normalizeInboundEmail } from '../integrations/email/normalizer.js';
@@ -6,6 +7,12 @@ import { executeEvent } from '../orchestration/index.js';
 import { deliverToEmail } from '../services/channels/index.js';
 import { emailThreadRepository } from '../repositories/email-thread.repository.js';
 import { ensureReplySubject, buildReferencesHeader } from '../integrations/email/client.js';
+import { jobRepository } from '../repositories/job.repository.js';
+import { QUEUES } from '../jobs/index.js';
+
+const EMAIL_SLA_MS = 15 * 60 * 1000;
+const RETRY_BASE_DELAY_MS = 60 * 1000;
+const RETRY_MAX_DELAY_MS = 10 * 60 * 1000;
 
 /**
  * Process an email processing job.
@@ -18,12 +25,20 @@ import { ensureReplySubject, buildReferencesHeader } from '../integrations/email
 export async function processEmailJob(
   jobPayload: EmailProcessingJobPayload,
 ): Promise<EmailProcessingJobResult> {
-  const { payload, idempotencyKey } = jobPayload;
+  const { payload, idempotencyKey, receivedAt } = jobPayload;
+  const latencyMs = Date.now() - new Date(receivedAt).getTime();
 
   logger.info(
-    { from: payload.from, subject: payload.subject, idempotencyKey },
+    { from: payload.from, subject: payload.subject, idempotencyKey, queueLatencyMs: latencyMs },
     'Processing email job',
   );
+
+  if (Number.isFinite(latencyMs) && latencyMs > EMAIL_SLA_MS) {
+    logger.warn(
+      { idempotencyKey, queueLatencyMs: latencyMs, receivedAt },
+      'Email processing started after SLA window',
+    );
+  }
 
   try {
     // 1. Normalize into InboundEvent
@@ -93,13 +108,142 @@ export async function processEmailJob(
 
 /**
  * Enqueue an email for processing.
- * Currently processes synchronously. When BullMQ is wired:
+ * Persists a Job record and schedules immediate in-process execution.
+ * A startup recovery sweep replays pending jobs after restarts.
+ * When BullMQ is fully wired:
  *   await emailQueue.add('process', payload, { jobId: idempotencyKey });
  */
 export async function enqueueEmailProcessing(
   payload: EmailProcessingJobPayload,
 ): Promise<EmailProcessingJobResult> {
-  return processEmailJob(payload);
+  const existing = await jobRepository.findByQueueAndIdempotency(
+    QUEUES.EMAIL_PROCESSING,
+    payload.idempotencyKey,
+  );
+  if (existing) {
+    logger.debug(
+      { idempotencyKey: payload.idempotencyKey, existingJobId: existing.id, status: existing.status },
+      'Skipping duplicate email enqueue due to existing persisted job',
+    );
+    return {
+      success: true,
+      conversationId: null,
+      messageId: null,
+      replySent: false,
+      error: null,
+    };
+  }
+
+  const job = await jobRepository.create({
+    queueName: QUEUES.EMAIL_PROCESSING,
+    jobType: 'process_inbound_email',
+    payload: payload as unknown as Prisma.InputJsonValue,
+  });
+
+  void runPersistedEmailJob(job.id, payload);
+
+  return {
+    success: true,
+    conversationId: null,
+    messageId: null,
+    replySent: false,
+    error: null,
+  };
+}
+
+export async function resumePendingEmailJobs(limit = 100): Promise<number> {
+  const recoverable = await jobRepository.listRecoverable(QUEUES.EMAIL_PROCESSING, limit);
+  let resumed = 0;
+
+  for (const job of recoverable) {
+    const payload = parsePersistedPayload(job.payload);
+    if (!payload) {
+      await jobRepository.markFailed(job.id, {
+        message: 'Invalid persisted email job payload',
+      }).catch((err) => {
+        logger.error({ err, jobId: job.id }, 'Failed to mark invalid persisted email job');
+      });
+      continue;
+    }
+
+    resumed += 1;
+    void runPersistedEmailJob(job.id, payload);
+  }
+
+  return resumed;
+}
+
+async function runPersistedEmailJob(jobId: string, payload: EmailProcessingJobPayload): Promise<void> {
+  try {
+    const claimed = await jobRepository.claimForRun(jobId);
+    if (!claimed) {
+      logger.debug({ jobId }, 'Email job was already claimed by another worker');
+      return;
+    }
+  } catch (err) {
+    logger.error({ err, jobId }, 'Failed to claim email job for running');
+    return;
+  }
+
+  const result = await processEmailJob(payload);
+
+  if (result.success) {
+    await jobRepository.markCompleted(jobId, result as unknown as Prisma.InputJsonValue).catch((err) => {
+      logger.error({ err, jobId }, 'Failed to mark email job as completed');
+    });
+    return;
+  }
+
+  const latest = await jobRepository.findById(jobId).catch((err) => {
+    logger.error({ err, jobId }, 'Failed to fetch email job state for retry decision');
+    return null;
+  });
+
+  const errorMessage = result.error ?? 'Unknown email processing failure';
+  if (latest && latest.attempts < latest.maxAttempts) {
+    const retryDelayMs = computeRetryDelayMs(latest.attempts);
+    await jobRepository.markRetrying(jobId, { message: errorMessage }).catch((err) => {
+      logger.error({ err, jobId }, 'Failed to mark email job as retrying');
+    });
+
+    logger.warn(
+      {
+        jobId,
+        attempts: latest.attempts,
+        maxAttempts: latest.maxAttempts,
+        retryDelayMs,
+      },
+      'Email job failed and will be retried',
+    );
+
+    scheduleEmailRetry(jobId, payload, retryDelayMs);
+    return;
+  }
+
+  await jobRepository.markFailed(jobId, {
+    message: errorMessage,
+  }).catch((err) => {
+    logger.error({ err, jobId }, 'Failed to mark email job as failed');
+  });
+}
+
+function parsePersistedPayload(payload: unknown): EmailProcessingJobPayload | null {
+  if (!payload || typeof payload !== 'object') return null;
+
+  const candidate = payload as Record<string, unknown>;
+  const message = candidate['payload'];
+  const idempotencyKey = candidate['idempotencyKey'];
+  const receivedAt = candidate['receivedAt'];
+
+  if (!message || typeof message !== 'object') return null;
+  if (typeof idempotencyKey !== 'string' || idempotencyKey.length === 0) return null;
+  if (typeof receivedAt !== 'string' || receivedAt.length === 0) return null;
+
+  return {
+    payload: message as EmailProcessingJobPayload['payload'],
+    idempotencyKey,
+    receivedAt,
+  };
 }
 
 async function persistEmailThread(
@@ -137,6 +281,23 @@ async function persistEmailThread(
     subject,
     bodyText: payload.textBody,
     bodyHtml: payload.htmlBody,
-    headers: payload.headers as any,
+    headers: (payload.headers ?? null) as Prisma.InputJsonValue,
   });
+}
+
+function computeRetryDelayMs(attempts: number): number {
+  const exponent = Math.max(0, attempts - 1);
+  const delay = RETRY_BASE_DELAY_MS * (2 ** exponent);
+  return Math.min(delay, RETRY_MAX_DELAY_MS);
+}
+
+function scheduleEmailRetry(
+  jobId: string,
+  payload: EmailProcessingJobPayload,
+  delayMs: number,
+): void {
+  const timer = setTimeout(() => {
+    void runPersistedEmailJob(jobId, payload);
+  }, delayMs);
+  timer.unref();
 }

@@ -1,4 +1,5 @@
 import type { MessageRecord, MessageListQuery } from '@openclaw/shared';
+import type { MessageDirection, MessageStatus } from '@prisma/client';
 import { messageRepository } from '../repositories/message.repository.js';
 import { conversationRepository } from '../repositories/conversation.repository.js';
 import { AppError } from '../utils/app-error.js';
@@ -12,8 +13,8 @@ export async function listMessages(conversationId: string, query: MessageListQue
 
   const result = await messageRepository.listByConversation({
     conversationId,
-    direction: query.direction as any,
-    status: query.status as any,
+    direction: query.direction as MessageDirection | undefined,
+    status: query.status as MessageStatus | undefined,
     page: query.page,
     pageSize: query.pageSize,
   });
@@ -25,6 +26,8 @@ export async function listMessages(conversationId: string, query: MessageListQue
     status: m.status,
     content: m.content,
     attachments: m.attachments as unknown[] | null,
+    metadata: (m.metadata as Record<string, unknown> | null) ?? null,
+    tokenUsage: m.tokenUsage ?? null,
     createdAt: m.createdAt.toISOString(),
   }));
 

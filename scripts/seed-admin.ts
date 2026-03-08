@@ -27,12 +27,19 @@ async function main() {
   const normalizedEmail = email.toLowerCase();
 
   const existing = await prisma.admin.findUnique({ where: { email: normalizedEmail } });
+  const passwordHash = await argon2.hash(password, { type: argon2.argon2id });
+
   if (existing) {
-    console.log(`[seed] Admin user already exists: ${normalizedEmail} (id: ${existing.id})`);
+    await prisma.admin.update({
+      where: { id: existing.id },
+      data: {
+        passwordHash,
+        role: 'super_admin',
+      },
+    });
+    console.log(`[seed] Admin user updated: ${normalizedEmail} (id: ${existing.id}, role: super_admin)`);
     return;
   }
-
-  const passwordHash = await argon2.hash(password, { type: argon2.argon2id });
 
   const admin = await prisma.admin.create({
     data: {

@@ -7,6 +7,12 @@ import type {
   RoutingSettings,
   LlmToolDefinition,
 } from '@openclaw/shared';
+import {
+  GHL_CRM_TOOL_NAME,
+  BOOKKEEPING_TOOL_NAME,
+  BOOKKEEPING_CATEGORIES,
+  FOLLOWUP_TOOL_NAME,
+} from '@openclaw/shared';
 import { getRoutingSettings } from '../settings.service.js';
 
 // ── Model Catalog ────────────────────────────────────────────
@@ -33,6 +39,9 @@ const VISION_MODELS = new Set([
 
 const SHORT_MESSAGE_CHARS = 200;
 const LONG_MESSAGE_CHARS = 1500;
+const BOOKKEEPING_CATEGORY_PATTERN = new RegExp(
+  `\\b(${BOOKKEEPING_CATEGORIES.map((c) => c.toLowerCase().replace(/[^\w\s]/g, '\\$&')).join('|')})\\b`,
+);
 
 /**
  * Analyze an inbound event and select the best model.
@@ -91,7 +100,7 @@ function analyzeSignals(event: InboundEvent, tools: LlmToolDefinition[]): Routin
   const requiresVision = event.attachments.some(
     (a) => a.type === 'image' || (a.mimeType?.startsWith('image/') ?? false),
   );
-  const requiresToolUse = tools.length > 0;
+  const requiresToolUse = detectToolUseNeed(event.text, tools, hasAttachments);
   const estimatedComplexity = estimateComplexity(event.text, hasAttachments);
   const hasFollowUpNeed = detectFollowUpNeed(event.text);
 
@@ -147,6 +156,55 @@ function detectFollowUpNeed(text: string): boolean {
   return /\b(help me|walk me through|can you|how do i|what should)\b/.test(lower);
 }
 
+function detectToolUseNeed(
+  text: string,
+  tools: LlmToolDefinition[],
+  hasAttachments: boolean,
+): boolean {
+  if (tools.length === 0) return false;
+
+  const lower = text.toLowerCase();
+  const hasTool = (name: string) => tools.some((tool) => tool.name === name);
+
+  // Receipt processing usually starts with an image upload.
+  if (hasAttachments && hasTool(BOOKKEEPING_TOOL_NAME)) {
+    return true;
+  }
+
+  if (
+    hasTool(GHL_CRM_TOOL_NAME)
+    && (
+      /\b(crm|contact|lead|pipeline|opportunity|update contact|search contact)\b/.test(lower)
+      || /\b(update|change|set)\b.*\b(phone|phone number|email|address|city|state|postal code|zip|website|tag)\b/.test(lower)
+    )
+  ) {
+    return true;
+  }
+
+  if (
+    hasTool(BOOKKEEPING_TOOL_NAME)
+    && (
+      /\b(receipt|bookkeeping|expense|categorize|category|invoice)\b/.test(lower)
+      || BOOKKEEPING_CATEGORY_PATTERN.test(lower)
+    )
+  ) {
+    return true;
+  }
+
+  if (
+    hasTool(FOLLOWUP_TOOL_NAME)
+    && /\b(follow[- ]?up|stale lead|check[- ]?in|remind|reschedule)\b/.test(lower)
+  ) {
+    return true;
+  }
+
+  if (/\b(use tool|run tool|call tool)\b/.test(lower)) {
+    return true;
+  }
+
+  return tools.some((tool) => lower.includes(tool.name.toLowerCase()));
+}
+
 // ── Tier Classification ──────────────────────────────────────
 
 function classifyTier(signals: RoutingSignals, escalatedFrom: string | null): ModelTier {
@@ -197,9 +255,14 @@ function selectModel(tier: ModelTier, signals: RoutingSignals, settings: Routing
     return DEFAULT_MODELS.cheap;
   }
 
-  // For standard/strong, prefer the admin-configured primary model
-  if (settings.primaryModel) {
+  // For standard, prefer the admin-configured primary model.
+  // Strong defaults to the strong-tier model unless overridden by a routing rule.
+  if (tier === 'standard' && settings.primaryModel) {
     return settings.primaryModel;
+  }
+
+  if (tier === 'strong') {
+    return DEFAULT_MODELS.strong;
   }
 
   return DEFAULT_MODELS[tier];

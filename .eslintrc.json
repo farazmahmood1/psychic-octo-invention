@@ -33,13 +33,31 @@
       },
       "parserOptions": {
         "ecmaFeatures": { "jsx": true },
-        "project": "./apps/admin/tsconfig.json"
+        "project": "./apps/admin/tsconfig.eslint.json"
       }
     },
     {
       "files": ["apps/api/**/*.ts"],
       "parserOptions": {
-        "project": "./apps/api/tsconfig.json"
+        "project": "./apps/api/tsconfig.eslint.json"
+      }
+    },
+    {
+      "files": ["packages/config/**/*.ts"],
+      "parserOptions": {
+        "project": "./packages/config/tsconfig.json"
+      }
+    },
+    {
+      "files": ["packages/shared/**/*.ts"],
+      "parserOptions": {
+        "project": "./packages/shared/tsconfig.eslint.json"
+      }
+    },
+    {
+      "files": ["e2e/**/*.ts", "playwright.config.ts", "scripts/**/*.ts"],
+      "parserOptions": {
+        "project": "./tsconfig.e2e.json"
       }
     }
   ],

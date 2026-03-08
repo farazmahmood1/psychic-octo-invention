@@ -58,7 +58,7 @@ export function SecurityPage() {
       header: 'Action',
       render: (row) => (
         <Badge variant="destructive">
-          {row.action.replace('security.', '').replace(/_/g, ' ')}
+          {row.action.replace('security.', '').replace(/\./g, ' ').replace(/_/g, ' ')}
         </Badge>
       ),
     },

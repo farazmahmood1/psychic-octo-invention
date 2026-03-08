@@ -51,15 +51,15 @@ vi.mock('../db/client.js', () => ({
     emailMessage: { findFirst: vi.fn(), create: vi.fn() },
     ghlActionLog: { create: vi.fn() },
     subAgentTask: { findMany: vi.fn(), create: vi.fn(), update: vi.fn(), count: vi.fn() },
-    followUpRecommendation: { findMany: vi.fn(), create: vi.fn() },
-    $transaction: vi.fn((fn: any) => fn()),
+    followUpRecommendation: { findMany: vi.fn(), findUnique: vi.fn(), findFirst: vi.fn(), create: vi.fn(), update: vi.fn() },
+    $transaction: vi.fn((fn: () => unknown) => fn()),
   },
 }));
 
 // Mock Redis client to prevent actual connections
 vi.mock('../db/redis.js', () => ({
   getRedis: vi.fn(() => null),
-  checkRedisHealth: vi.fn(async () => true),
+  checkRedisHealth: vi.fn(() => Promise.resolve(true)),
   closeRedis: vi.fn(async () => {}),
 }));
 

@@ -12,32 +12,12 @@ import { retrieveMemories, extractAndStoreMemories } from '../services/memory/in
 import { composePrompt, contextToMessages } from './prompt-composer.js';
 import { resolveConversation, persistMessages, loadRecentMessages } from './conversation-manager.js';
 import { persistUsageLog } from './usage-tracker.js';
-import { resolveTools } from './tool-resolver.js';
+import { resolveToolCatalog } from './tool-resolver.js';
 import { processSubAgentCalls, isSubAgentToolCall } from './sub-agent-dispatcher.js';
+import { executeExternalToolCalls } from './external-tool-executor.js';
 
 /**
- * Orchestrator — the central execution pipeline for processing inbound events.
- *
- * Pipeline steps:
- *   1. Resolve or create conversation
- *   2. Persist the inbound message
- *   3. Retrieve relevant memories
- *   4. Resolve available tools/skills
- *   5. Route to the appropriate model
- *   6. Compose prompt (system + memories + history + user message)
- *   7. Call the LLM provider
- *   8. Handle tool calls — execute sub-agent dispatches, collect results
- *   8b. If sub-agent calls were executed, follow up with LLM for final reply
- *   9. Persist the assistant reply
- *  10. Extract and store new memories
- *  11. Log usage metrics
- *  12. Return ExecutionResult
- *
- * Design principles:
- * - Provider failures return a graceful error reply, never crash the pipeline
- * - Memory/usage logging failures are warnings, not blockers
- * - Sub-agent tool calls are executed synchronously and their results fed back to the LLM
- * - The pipeline is synchronous per-event (async orchestration via job queue wraps this)
+ * Central execution pipeline for processing one inbound event.
  */
 export async function executeEvent(event: InboundEvent): Promise<ExecutionResult> {
   const warnings: string[] = [];
@@ -48,11 +28,12 @@ export async function executeEvent(event: InboundEvent): Promise<ExecutionResult
   // 2. Persist inbound message
   const inboundMessageId = await persistMessages.inbound(event, conversationId, participantId);
 
-  // 3. Retrieve memories (failure = warning, not error)
+  // 3. Retrieve memories
   const memories = await retrieveMemories(event, conversationId);
 
   // 4. Resolve available tools
-  const tools = await resolveTools();
+  const toolCatalog = await resolveToolCatalog();
+  const tools = toolCatalog.tools;
 
   // 5. Route to model
   let routing = await routeModel(event, tools);
@@ -78,13 +59,13 @@ export async function executeEvent(event: InboundEvent): Promise<ExecutionResult
       temperature: 0.7,
     });
   } catch (err) {
-    // Try escalation on provider failure if not already at strongest
     logger.error({ err, model: routing.model }, 'LLM provider failed');
 
     const escalated = await escalateModel(routing, event, tools);
     if (escalated) {
       routing = escalated;
       warnings.push(`Primary model failed, escalated to ${routing.model}`);
+
       try {
         response = await provider.complete({
           model: routing.model,
@@ -94,31 +75,42 @@ export async function executeEvent(event: InboundEvent): Promise<ExecutionResult
         });
       } catch (retryErr) {
         logger.error({ err: retryErr, model: routing.model }, 'Escalated model also failed');
-        return buildErrorResult(conversationId, inboundMessageId, routing, err as Error);
+        return buildErrorResult(conversationId, inboundMessageId, routing, retryErr as Error);
       }
     } else {
       return buildErrorResult(conversationId, inboundMessageId, routing, err as Error);
     }
   }
 
-  // 8. Handle tool calls — execute sub-agent dispatches
+  // 8. Handle tool calls: external tools + sub-agents
   const allToolDispatches: ToolDispatch[] = [];
   const allSubAgentDispatches: SubAgentDispatch[] = [];
+  const allToolResults: Array<{ toolCallId: string; result: string }> = [];
 
   const subAgentToolCalls = response.toolCalls.filter((tc) => isSubAgentToolCall(tc.name));
   const externalToolCalls = response.toolCalls.filter((tc) => !isSubAgentToolCall(tc.name));
 
-  // Mark external tool calls as pending (handled by future skill execution layer)
-  for (const tc of externalToolCalls) {
-    allToolDispatches.push({
-      toolName: tc.name,
-      arguments: safeParseJson(tc.arguments),
-      status: 'pending',
-    });
+  if (externalToolCalls.length > 0) {
+    try {
+      const externalResults = await executeExternalToolCalls(
+        externalToolCalls,
+        toolCatalog.externalToolsByName,
+        {
+          conversationId,
+          externalUserId: event.externalUserId,
+          sourceChannel: event.channel,
+          sourceMessageId: inboundMessageId,
+        },
+      );
+
+      allToolDispatches.push(...externalResults.toolDispatches);
+      allToolResults.push(...externalResults.toolResults);
+    } catch (err) {
+      logger.error({ err }, 'External skill execution failed');
+      warnings.push('External skill execution failed');
+    }
   }
 
-  // Execute sub-agent tool calls synchronously
-  let finalReply = response.content;
   if (subAgentToolCalls.length > 0) {
     try {
       const subAgentResults = await processSubAgentCalls(subAgentToolCalls, {
@@ -126,62 +118,91 @@ export async function executeEvent(event: InboundEvent): Promise<ExecutionResult
         externalUserId: event.externalUserId,
         sourceChannel: event.channel,
         sourceMessageId: inboundMessageId,
+        sourceImageUrl: event.attachments.find((a) => a.type === 'image')?.url ?? undefined,
       });
+
       allToolDispatches.push(...subAgentResults.toolDispatches);
       allSubAgentDispatches.push(...subAgentResults.subAgentDispatches);
-
-      // 8b. Follow up with LLM — feed tool results back for the final user-facing reply
-      if (subAgentResults.toolResults.length > 0) {
-        const followUpMessages = [
-          ...messages,
-          // The assistant's tool-calling message
-          { role: 'assistant' as const, content: response.content || '' },
-          // Tool result messages
-          ...subAgentResults.toolResults.map((tr) => ({
-            role: 'tool' as const,
-            content: tr.result,
-            toolCallId: tr.toolCallId,
-          })),
-        ];
-
-        try {
-          const followUp = await provider.complete({
-            model: routing.model,
-            messages: followUpMessages,
-            temperature: 0.7,
-          });
-          finalReply = followUp.content;
-
-          // Accumulate usage from follow-up call
-          response.usage.promptTokens += followUp.usage.promptTokens;
-          response.usage.completionTokens += followUp.usage.completionTokens;
-          response.usage.totalTokens += followUp.usage.totalTokens;
-          if (response.usage.estimatedCostUsd !== null && followUp.usage.estimatedCostUsd !== null) {
-            response.usage.estimatedCostUsd += followUp.usage.estimatedCostUsd;
-          }
-          response.latencyMs += followUp.latencyMs;
-        } catch (followUpErr) {
-          // If follow-up fails, use the sub-agent summary directly
-          logger.warn({ err: followUpErr }, 'Follow-up LLM call after sub-agent failed');
-          warnings.push('Follow-up LLM call failed, using sub-agent result directly');
-          const summaries = subAgentResults.toolResults.map((tr) => tr.result);
-          finalReply = summaries.join('\n\n');
-        }
-      }
+      allToolResults.push(...subAgentResults.toolResults);
     } catch (err) {
       logger.error({ err }, 'Sub-agent dispatch failed');
       warnings.push('Sub-agent dispatch failed');
     }
   }
 
+  let finalReply = response.content;
+
+  // 8b. Follow up with LLM using tool outputs
+  if (allToolResults.length > 0) {
+    const followUpMessages = [
+      ...messages,
+      { role: 'assistant' as const, content: response.content || '' },
+      ...allToolResults.map((tr) => ({
+        role: 'tool' as const,
+        content: tr.result,
+        toolCallId: tr.toolCallId,
+      })),
+    ];
+
+    try {
+      const followUp = await provider.complete({
+        model: routing.model,
+        messages: followUpMessages,
+        temperature: 0.7,
+      });
+
+      finalReply = followUp.content;
+
+      response.usage.promptTokens += followUp.usage.promptTokens;
+      response.usage.completionTokens += followUp.usage.completionTokens;
+      response.usage.totalTokens += followUp.usage.totalTokens;
+      if (response.usage.estimatedCostUsd !== null && followUp.usage.estimatedCostUsd !== null) {
+        response.usage.estimatedCostUsd += followUp.usage.estimatedCostUsd;
+      }
+      response.latencyMs += followUp.latencyMs;
+    } catch (followUpErr) {
+      logger.warn({ err: followUpErr }, 'Follow-up LLM call after tool execution failed');
+      warnings.push('Follow-up LLM call failed, using tool results directly');
+      finalReply = allToolResults.map((tr) => tr.result).join('\n\n');
+    }
+  }
+
   // 9. Persist assistant reply
+  const initialRuntimeMetadata = {
+    routing: {
+      provider: routing.provider,
+      model: response.model,
+      tier: routing.tier,
+      reason: routing.reason,
+      escalatedFrom: routing.escalatedFrom,
+      signals: routing.signals,
+    },
+    execution: {
+      toolCallsRequested: response.toolCalls.length,
+      externalToolCalls: externalToolCalls.length,
+      subAgentToolCalls: subAgentToolCalls.length,
+      externalToolsExecuted: allToolDispatches.filter(
+        (d) => !isSubAgentToolCall(d.toolName) && d.status === 'completed',
+      ).length,
+      subAgentDispatches: allSubAgentDispatches.length,
+      warningsCount: warnings.length,
+    },
+    memory: {
+      retrievedCount: memories.length,
+    },
+  };
+
   const replyMessageId = await persistMessages.outbound(
     finalReply,
     conversationId,
     inboundMessageId,
+    {
+      metadata: initialRuntimeMetadata,
+      tokenUsage: response.usage.totalTokens,
+    },
   );
 
-  // 10. Extract and store memories (failure = warning)
+  // 10. Extract and store memories
   let memoryWrites: MemoryFact[] = [];
   try {
     memoryWrites = await extractAndStoreMemories(
@@ -195,13 +216,13 @@ export async function executeEvent(event: InboundEvent): Promise<ExecutionResult
     logger.warn({ err }, 'Memory extraction failed');
   }
 
-  // 11. Log usage (failure = warning, must not break reply path)
+  // 11. Persist usage
   try {
     await persistUsageLog({
       messageId: replyMessageId,
       provider: routing.provider,
       model: response.model,
-      requestType: subAgentToolCalls.length > 0 ? 'chat_completion_with_tools' : 'chat_completion',
+      requestType: response.toolCalls.length > 0 ? 'chat_completion_with_tools' : 'chat_completion',
       promptTokens: response.usage.promptTokens,
       completionTokens: response.usage.completionTokens,
       totalTokens: response.usage.totalTokens,
@@ -212,6 +233,36 @@ export async function executeEvent(event: InboundEvent): Promise<ExecutionResult
   } catch (err) {
     warnings.push('Usage logging failed');
     logger.warn({ err }, 'Usage logging failed');
+  }
+
+  // 11b. Attach finalized runtime metadata for admin traceability.
+  try {
+    await persistMessages.mergeMetadata(replyMessageId, {
+      usage: {
+        promptTokens: response.usage.promptTokens,
+        completionTokens: response.usage.completionTokens,
+        totalTokens: response.usage.totalTokens,
+        estimatedCostUsd: response.usage.estimatedCostUsd,
+        latencyMs: response.latencyMs,
+      },
+      memory: {
+        retrievedCount: memories.length,
+        writtenCount: memoryWrites.length,
+      },
+      execution: {
+        toolCallsRequested: response.toolCalls.length,
+        externalToolCalls: externalToolCalls.length,
+        subAgentToolCalls: subAgentToolCalls.length,
+        externalToolsCompleted: allToolDispatches.filter(
+          (d) => !isSubAgentToolCall(d.toolName) && d.status === 'completed',
+        ).length,
+        subAgentDispatches: allSubAgentDispatches.length,
+      },
+      warnings,
+    }, response.usage.totalTokens);
+  } catch (err) {
+    warnings.push('Message metadata update failed');
+    logger.warn({ err, replyMessageId }, 'Failed to update message runtime metadata');
   }
 
   // 12. Return result
@@ -228,29 +279,29 @@ export async function executeEvent(event: InboundEvent): Promise<ExecutionResult
   };
 }
 
-function buildErrorResult(
+async function buildErrorResult(
   conversationId: string,
-  messageId: string,
+  inboundMessageId: string,
   routing: ExecutionResult['routing'],
   error: Error,
-): ExecutionResult {
+): Promise<ExecutionResult> {
+  const reply = "I'm sorry, I'm having trouble processing your request right now. Please try again in a moment.";
+  let replyMessageId = inboundMessageId;
+  try {
+    replyMessageId = await persistMessages.outbound(reply, conversationId, inboundMessageId);
+  } catch (persistErr) {
+    logger.error({ err: persistErr, conversationId }, 'Failed to persist provider error reply');
+  }
+
   return {
-    reply: "I'm sorry, I'm having trouble processing your request right now. Please try again in a moment.",
+    reply,
     memoryWrites: [],
     usage: { promptTokens: 0, completionTokens: 0, totalTokens: 0, estimatedCostUsd: null },
     routing,
     toolDispatches: [],
     subAgentDispatches: [],
     conversationId,
-    messageId,
+    messageId: replyMessageId,
     warnings: [`Provider error: ${error.message}`],
   };
-}
-
-function safeParseJson(str: string): Record<string, unknown> {
-  try {
-    return JSON.parse(str) as Record<string, unknown>;
-  } catch {
-    return { raw: str };
-  }
 }

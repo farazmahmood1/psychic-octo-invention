@@ -116,9 +116,6 @@ function extractFacts(
   const text = event.text;
   const userId = event.externalUserId;
 
-  // Skip very short messages — unlikely to contain durable facts
-  if (text.length < 20) return facts;
-
   // Pattern: Personal identification ("my name is X", "I am X")
   const nameMatch = text.match(/\b(?:my name is|i(?:'m| am)) (\w[\w\s]{1,30})/i);
   if (nameMatch?.[1]) {

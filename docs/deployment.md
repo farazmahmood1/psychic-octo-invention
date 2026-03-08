@@ -1,5 +1,7 @@
 # Deployment Guide
 
+> Release note: for submission/demo operations, use [README.md](../README.md), [runbook.md](./runbook.md), and [demo-contingency.md](./demo-contingency.md) as the canonical operator guides.
+
 ## Architecture Overview
 
 ```
@@ -91,12 +93,12 @@ npm run seed:admin
 # 5. Start Redis (Docker)
 docker compose up -d redis
 
-# 6. Start all dev servers (API + Admin + Worker)
-npm run dev
+# 6. Start processes
+npm run dev:api     # API at http://localhost:4000
+npm run dev:admin   # Admin at http://localhost:5173
+npm run dev:worker  # Worker (recommended when REDIS_URL is set)
 
-# Or start individually:
-npm run dev:api    # API at http://localhost:4000
-npm run dev:admin  # Admin at http://localhost:5173
+# `npm run dev` starts workspace dev scripts (API + Admin), but does not start worker.
 ```
 
 ### Docker Development

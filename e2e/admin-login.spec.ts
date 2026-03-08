@@ -11,10 +11,12 @@
  */
 import { test, expect } from '@playwright/test';
 
-const ADMIN_EMAIL = process.env.E2E_ADMIN_EMAIL ?? 'admin@openclaw.dev';
-const ADMIN_PASSWORD = process.env.E2E_ADMIN_PASSWORD ?? 'AdminP@ssw0rd!234';
+const ADMIN_EMAIL = process.env.E2E_ADMIN_EMAIL ?? process.env.ADMIN_SEED_EMAIL ?? 'admin@openclaw.dev';
+const ADMIN_PASSWORD = process.env.E2E_ADMIN_PASSWORD ?? process.env.ADMIN_SEED_PASSWORD ?? 'AdminP@ssw0rd!234';
 
 test.describe('Admin Portal E2E', () => {
+  test.describe.configure({ mode: 'serial' });
+
   test('STORY-UI1: login and reach dashboard', async ({ page }) => {
     // Navigate to login
     await page.goto('/login');
@@ -28,7 +30,7 @@ test.describe('Admin Portal E2E', () => {
 
     // Wait for dashboard to load
     await expect(page).toHaveURL(/\/dashboard/, { timeout: 10_000 });
-    await expect(page.getByText('Dashboard')).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible();
   });
 
   test('STORY-UI1: invalid login shows error', async ({ page }) => {
@@ -61,12 +63,12 @@ test.describe('Admin Portal E2E', () => {
     // Navigate to Chats
     await page.getByRole('link', { name: 'Chats' }).click();
     await expect(page).toHaveURL(/\/dashboard\/chats/);
-    await expect(page.getByText('Chat History')).toBeVisible();
+    await expect(page.locator('main').getByRole('heading', { name: 'Chat History' })).toBeVisible();
 
     // Navigate to Usage
     await page.getByRole('link', { name: 'Usage' }).click();
     await expect(page).toHaveURL(/\/dashboard\/usage/);
-    await expect(page.getByText('API Usage')).toBeVisible();
+    await expect(page.locator('main').getByRole('heading', { name: 'API Usage' })).toBeVisible();
 
     // Navigate to Skills
     await page.getByRole('link', { name: 'Skills' }).click();

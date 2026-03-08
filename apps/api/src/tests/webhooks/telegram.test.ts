@@ -4,6 +4,7 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import supertest from 'supertest';
+import { env } from '@openclaw/config';
 import {
   createTelegramTextUpdate,
   createTelegramPhotoUpdate,
@@ -102,6 +103,22 @@ describe('Telegram Webhook', () => {
         .send(createTelegramTextUpdate());
 
       expect(res.status).toBe(401);
+    });
+
+    it('fails closed when webhook secret is not configured', async () => {
+      const originalSecret = env.TELEGRAM_WEBHOOK_SECRET;
+      try {
+        env.TELEGRAM_WEBHOOK_SECRET = undefined;
+
+        const res = await supertest(app)
+          .post('/')
+          .set('x-telegram-bot-api-secret-token', TELEGRAM_WEBHOOK_SECRET)
+          .send(createTelegramTextUpdate());
+
+        expect(res.status).toBe(503);
+      } finally {
+        env.TELEGRAM_WEBHOOK_SECRET = originalSecret;
+      }
     });
   });
 

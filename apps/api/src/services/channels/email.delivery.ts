@@ -1,5 +1,6 @@
 import { logger } from '@openclaw/config';
 import type { ChannelDeliveryResult } from '@openclaw/shared';
+import type { Prisma } from '@prisma/client';
 import { prisma } from '../../db/client.js';
 import { sendEmail, buildReferencesHeader, ensureReplySubject } from '../../integrations/email/index.js';
 import { emailThreadRepository } from '../../repositories/email-thread.repository.js';
@@ -122,11 +123,23 @@ async function updateMessageStatus(
   metadata?: Record<string, unknown>,
 ): Promise<void> {
   try {
+    const existing = await prisma.message.findUnique({
+      where: { id: messageId },
+      select: { metadata: true },
+    });
+
+    const mergedMetadata: Prisma.InputJsonValue | undefined = metadata
+      ? ({
+        ...((existing?.metadata as Record<string, unknown> | null) ?? {}),
+        ...metadata,
+      } as Prisma.InputJsonValue)
+      : (existing?.metadata as Prisma.InputJsonValue | null) ?? undefined;
+
     await prisma.message.update({
       where: { id: messageId },
       data: {
         status,
-        ...(metadata ? { metadata: metadata as any } : {}),
+        ...(mergedMetadata !== undefined ? { metadata: mergedMetadata } : {}),
       },
     });
   } catch (err) {

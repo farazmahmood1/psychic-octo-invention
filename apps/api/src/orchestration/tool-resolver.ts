@@ -151,6 +151,22 @@ IMPORTANT:
   },
 };
 
+const DEFAULT_EXTERNAL_TOOL_TIMEOUT_MS = 8_000;
+const MAX_EXTERNAL_TOOL_TIMEOUT_MS = 20_000;
+
+export interface ExternalSkillToolRuntime {
+  toolName: string;
+  skillSlug: string;
+  skillId: string;
+  source: string;
+  timeoutMs: number;
+}
+
+export interface ResolvedToolCatalog {
+  tools: LlmToolDefinition[];
+  externalToolsByName: Map<string, ExternalSkillToolRuntime>;
+}
+
 /**
  * Resolve currently available tools from enabled, vetted skills
  * plus built-in sub-agent tools (GHL CRM, Bookkeeping, Follow-Up).
@@ -162,8 +178,14 @@ IMPORTANT:
  * - Built-in sub-agent tools are always included
  */
 export async function resolveTools(): Promise<LlmToolDefinition[]> {
+  const catalog = await resolveToolCatalog();
+  return catalog.tools;
+}
+
+export async function resolveToolCatalog(): Promise<ResolvedToolCatalog> {
   // Start with built-in sub-agent tools
   const tools: LlmToolDefinition[] = [GHL_CRM_TOOL, BOOKKEEPING_TOOL, FOLLOWUP_TOOL];
+  const externalToolsByName = new Map<string, ExternalSkillToolRuntime>();
 
   try {
     const skills = await prisma.skill.findMany({
@@ -176,16 +198,25 @@ export async function resolveTools(): Promise<LlmToolDefinition[]> {
         },
       },
       select: {
+        id: true,
         slug: true,
+        sourceType: true,
         displayName: true,
         description: true,
         metadata: true,
+        currentVersion: {
+          select: {
+            config: true,
+          },
+        },
       },
     });
 
     for (const skill of skills) {
       // Runtime execution guard check
-      const guardResult = await skillExecutionGuard.canExecute(skill.slug);
+      const guardResult = await skillExecutionGuard.canExecute(skill.slug, {
+        requireSourceHash: skill.sourceType !== 'builtin',
+      });
       if (!guardResult.approved) {
         logger.warn(
           { slug: skill.slug, reason: guardResult.reason },
@@ -197,12 +228,70 @@ export async function resolveTools(): Promise<LlmToolDefinition[]> {
       const meta = skill.metadata as Record<string, unknown> | null;
       const toolDef = meta?.['toolDefinition'] as LlmToolDefinition | undefined;
       if (toolDef && toolDef.name && toolDef.description && toolDef.parameters) {
+        const source = extractSourceFromSkillConfig(skill.currentVersion?.config);
+        if (!source) {
+          logger.warn(
+            { slug: skill.slug, toolName: toolDef.name },
+            'External skill tool skipped from runtime map due to missing source snapshot',
+          );
+          continue;
+        }
+
+        if (!guardResult.skillId) {
+          logger.warn(
+            { slug: skill.slug, toolName: toolDef.name },
+            'External skill tool skipped due to missing guard skillId',
+          );
+          continue;
+        }
+
+        if (externalToolsByName.has(toolDef.name)) {
+          logger.warn(
+            { toolName: toolDef.name, slug: skill.slug },
+            'Duplicate external tool name detected; skipping later skill binding',
+          );
+          continue;
+        }
+
         tools.push(toolDef);
+        externalToolsByName.set(toolDef.name, {
+          toolName: toolDef.name,
+          skillSlug: skill.slug,
+          skillId: guardResult.skillId,
+          source,
+          timeoutMs: resolveExternalToolTimeout(meta),
+        });
       }
     }
   } catch (err) {
     logger.warn({ err }, 'Failed to resolve tools from skills, proceeding with built-in tools only');
   }
 
-  return tools;
+  return { tools, externalToolsByName };
+}
+
+function extractSourceFromSkillConfig(config: unknown): string | null {
+  if (!config || typeof config !== 'object' || Array.isArray(config)) {
+    return null;
+  }
+
+  const source = (config as Record<string, unknown>)['__source'];
+  if (typeof source !== 'string') {
+    return null;
+  }
+
+  const trimmed = source.trim();
+  return trimmed.length > 0 ? trimmed : null;
+}
+
+function resolveExternalToolTimeout(metadata: Record<string, unknown> | null): number {
+  const raw = metadata?.['executionTimeoutMs'];
+  if (typeof raw !== 'number' || !Number.isFinite(raw)) {
+    return DEFAULT_EXTERNAL_TOOL_TIMEOUT_MS;
+  }
+
+  const bounded = Math.floor(raw);
+  if (bounded < 500) return 500;
+  if (bounded > MAX_EXTERNAL_TOOL_TIMEOUT_MS) return MAX_EXTERNAL_TOOL_TIMEOUT_MS;
+  return bounded;
 }
