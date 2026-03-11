@@ -1,4 +1,7 @@
 import { z } from 'zod';
+import { loadRepoEnv } from './load-env.js';
+
+loadRepoEnv();
 
 /**
  * Environment variable schema.
@@ -19,7 +22,7 @@ const envSchema = z.object({
   // Auth (required)
   SESSION_SECRET: z.string().min(32),
   ADMIN_SEED_EMAIL: z.string().email().optional(),
-  ADMIN_SEED_PASSWORD: z.string().min(8).optional(),
+  ADMIN_SEED_PASSWORD: z.string().min(12).optional(),
 
   // AI (optional — degraded without LLM)
   OPENROUTER_API_KEY: z.string().min(1).optional(),
@@ -28,6 +31,7 @@ const envSchema = z.object({
   // Telegram (optional — degraded without bot)
   TELEGRAM_BOT_TOKEN: z.string().min(1).optional(),
   TELEGRAM_WEBHOOK_SECRET: z.string().min(16).optional(),
+  TELEGRAM_API_BASE_URL: z.string().url().default('https://api.telegram.org'),
 
   // Email (optional — degraded without SMTP)
   INBOUND_EMAIL_WEBHOOK_SECRET: z.string().min(16).optional(),
@@ -49,6 +53,8 @@ const envSchema = z.object({
   APP_BASE_URL: z.string().url().default('http://localhost:4000'),
   ADMIN_APP_URL: z.string().url().default('http://localhost:5173'),
   API_BASE_URL: z.string().url().default('http://localhost:4000'),
+  RENDER_EXTERNAL_URL: z.string().url().optional(),
+  VITE_DEV_PROXY_TARGET: z.string().url().optional(),
 
   // Worker
   WORKER_CONCURRENCY: z.coerce.number().min(1).max(50).default(5),

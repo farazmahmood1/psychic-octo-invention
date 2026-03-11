@@ -48,6 +48,8 @@
 
 See `.env.example` for the full list. All integration-specific variables are **optional** — the system boots in degraded mode when a provider is unconfigured.
 
+The API, worker, seed script, and admin Vite config load the repository root `.env` automatically for local development. Render-managed env vars still override file values.
+
 ### Required (system will not start without these)
 
 | Variable | Description | Example |
@@ -62,10 +64,21 @@ See `.env.example` for the full list. All integration-specific variables are **o
 | `REDIS_URL` | BullMQ queues | *(sync mode if unset)* |
 | `OPENROUTER_API_KEY` | LLM routing | *(no AI features)* |
 | `TELEGRAM_BOT_TOKEN` + `TELEGRAM_WEBHOOK_SECRET` | Telegram bot | *(webhook disabled)* |
+| `TELEGRAM_API_BASE_URL` | Telegram API base URL override | `https://api.telegram.org` |
 | `SMTP_HOST` + `SMTP_USER` + `SMTP_PASS` + `SMTP_FROM` | Email | *(email disabled)* |
 | `INBOUND_EMAIL_WEBHOOK_SECRET` | Inbound email | *(webhook disabled)* |
 | `GHL_API_TOKEN` | GoHighLevel CRM | *(CRM disabled)* |
 | `GOOGLE_SERVICE_ACCOUNT_JSON` + `GOOGLE_SHEETS_BOOKKEEPING_SPREADSHEET_ID` | Bookkeeping | *(sheets disabled)* |
+
+### Frontend / Hosting Variables
+
+| Variable | Purpose | Notes |
+|----------|---------|-------|
+| `VITE_DEV_PROXY_TARGET` | Admin Vite dev proxy target | Local dev only; not used in static production builds |
+| `APP_BASE_URL` | Public API base used in provider/webhook metadata | Should be public HTTPS in production |
+| `ADMIN_APP_URL` | Allowed admin origin for CORS | Must match deployed admin URL |
+| `API_BASE_URL` | Preferred public API URL for webhook registration | Used before Render auto-discovery |
+| `RENDER_EXTERNAL_URL` | Render-provided public API URL | Auto-injected by Render; used for Telegram webhook fallback |
 
 ### Performance Tuning
 

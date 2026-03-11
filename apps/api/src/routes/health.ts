@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import type { Response } from 'express';
 import { SERVICE_NAME } from '@openclaw/shared';
-import { integrationConfigured } from '@openclaw/config';
+import { env, integrationConfigured } from '@openclaw/config';
 import { checkDatabaseHealth, checkRedisHealth } from '../db/index.js';
 
 export const healthRouter = Router();
@@ -14,7 +14,7 @@ healthRouter.get('/', (_req, res) => {
     status: 'ok',
     service: SERVICE_NAME,
     uptime: Math.floor((Date.now() - startTime) / 1000),
-    environment: process.env['NODE_ENV'] || 'development',
+    environment: env.NODE_ENV,
     timestamp: new Date().toISOString(),
   });
 });

@@ -30,6 +30,7 @@ vi.mock('../../integrations/telegram/normalizer.js', () => ({
 
 vi.mock('../../integrations/telegram/client.js', () => ({
   sendChatAction: vi.fn().mockResolvedValue(undefined),
+  sendMessage: vi.fn().mockResolvedValue({ ok: true, result: { message_id: 999 } }),
 }));
 
 vi.mock('../../orchestration/index.js', () => ({
@@ -51,7 +52,7 @@ import { telegramWebhookRouter } from '../../routes/webhooks/telegram.js';
 import { normalizeTelegramUpdate } from '../../integrations/telegram/normalizer.js';
 import { executeEvent } from '../../orchestration/index.js';
 import { deliverToTelegram } from '../../services/channels/index.js';
-import { sendChatAction } from '../../integrations/telegram/client.js';
+import { sendChatAction, sendMessage } from '../../integrations/telegram/client.js';
 import express from 'express';
 
 function createWebhookApp() {
@@ -192,6 +193,7 @@ describe('Telegram Webhook', () => {
 
       expect(res.status).toBe(200);
       expect(res.body).toEqual({ ok: true });
+      expect(sendMessage).toHaveBeenCalledTimes(1);
     });
   });
 });

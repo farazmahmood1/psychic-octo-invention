@@ -1,8 +1,10 @@
 import { logger } from '@openclaw/config';
+import { FOLLOWUP_TOOL_NAME } from '@openclaw/shared';
 import type { FollowUpJobPayload, FollowUpJobResult } from '../jobs/followup.job.js';
 import { toFollowUpJobResult, toFollowUpJobError } from '../jobs/followup.job.js';
 import { executeFollowUpTask } from '../services/subagents/index.js';
 import { subAgentTaskRepository } from '../repositories/sub-agent-task.repository.js';
+import { getFirstPartyToolSettings, isFirstPartyToolEnabled } from '../services/settings.service.js';
 
 /**
  * Process a lead follow-up sub-agent job.
@@ -13,6 +15,11 @@ import { subAgentTaskRepository } from '../repositories/sub-agent-task.repositor
 export async function processFollowUpJob(
   payload: FollowUpJobPayload,
 ): Promise<FollowUpJobResult> {
+  const disabledError = await resolveDisabledToolError(FOLLOWUP_TOOL_NAME, payload.subAgentTaskId);
+  if (disabledError) {
+    return disabledError;
+  }
+
   logger.info(
     { action: payload.input.action, conversationId: payload.conversationId },
     'Processing follow-up job',
@@ -76,4 +83,27 @@ export async function enqueueFollowUpJob(
   payload: FollowUpJobPayload,
 ): Promise<FollowUpJobResult> {
   return processFollowUpJob(payload);
+}
+
+async function resolveDisabledToolError(
+  toolName: string,
+  subAgentTaskId?: string,
+): Promise<FollowUpJobResult | null> {
+  const settings = await getFirstPartyToolSettings();
+  if (isFirstPartyToolEnabled(toolName, settings)) {
+    return null;
+  }
+
+  const error = new Error(`${toolName} is currently disabled in admin settings.`);
+  logger.warn({ toolName }, 'Blocked queued first-party tool because it is disabled in runtime settings');
+
+  if (subAgentTaskId) {
+    await subAgentTaskRepository.updateStatus(subAgentTaskId, 'failed', {
+      errorDetails: { message: error.message },
+    }).catch((err) => {
+      logger.warn({ err, subAgentTaskId }, 'Failed to update disabled queued task status');
+    });
+  }
+
+  return toFollowUpJobError(error);
 }

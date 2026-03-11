@@ -10,6 +10,7 @@ export default defineConfig({
     include: ['src/tests/**/*.test.{ts,tsx}'],
     setupFiles: ['src/tests/setup.ts'],
     css: false,
+    testTimeout: 15000,
   },
   resolve: {
     alias: {

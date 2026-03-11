@@ -11,7 +11,16 @@ export async function getDashboardStats(): Promise<DashboardStats> {
     conversationRepository.countByStatus('active'),
     prisma.message.count({ where: { createdAt: { gte: startOfDay } } }),
     usageRepository.sumCostCurrentMonth(),
-    prisma.skill.count({ where: { enabled: true } }),
+    prisma.skill.count({
+      where: {
+        enabled: true,
+        currentVersion: {
+          vettingResults: {
+            some: { result: { in: ['passed', 'warning'] } },
+          },
+        },
+      },
+    }),
   ]);
 
   return {

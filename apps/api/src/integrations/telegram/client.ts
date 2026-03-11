@@ -1,7 +1,8 @@
 import { env, logger } from '@openclaw/config';
 import type { TelegramSendResult } from '@openclaw/shared';
 
-const TELEGRAM_API_BASE = `https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}`;
+const TELEGRAM_API_BASE_ROOT = env.TELEGRAM_API_BASE_URL.replace(/\/+$/, '');
+const TELEGRAM_API_BASE = `${TELEGRAM_API_BASE_ROOT}/bot${env.TELEGRAM_BOT_TOKEN}`;
 const TIMEOUT_MS = 30_000;
 const MAX_RETRIES = 2;
 
@@ -119,7 +120,7 @@ export async function getFileUrl(fileId: string): Promise<string | null> {
     });
 
     if (result.ok && result.result?.file_path) {
-      return `https://api.telegram.org/file/bot${env.TELEGRAM_BOT_TOKEN}/${result.result.file_path}`;
+      return `${TELEGRAM_API_BASE_ROOT}/file/bot${env.TELEGRAM_BOT_TOKEN}/${result.result.file_path}`;
     }
     return null;
   } catch (err) {

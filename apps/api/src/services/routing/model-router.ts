@@ -19,7 +19,7 @@ import { getRoutingSettings } from '../settings.service.js';
 // Maps tiers to default OpenRouter model identifiers.
 // These serve as fallbacks when DB settings are absent.
 
-const DEFAULT_MODELS: Record<ModelTier, string> = {
+export const DEFAULT_MODELS: Record<ModelTier, string> = {
   cheap: 'google/gemini-2.5-flash',
   standard: 'anthropic/claude-sonnet-4',
   strong: 'anthropic/claude-opus-4',
@@ -51,10 +51,11 @@ export async function routeModel(
   event: InboundEvent,
   tools: LlmToolDefinition[],
   escalatedFrom: string | null = null,
+  settingsOverride?: RoutingSettings,
 ): Promise<RoutingDecision> {
   const signals = analyzeSignals(event, tools);
   const tier = classifyTier(signals, escalatedFrom);
-  const settings = await getRoutingSettings();
+  const settings = settingsOverride ?? await getRoutingSettings();
   const model = selectModel(tier, signals, settings);
   const provider = 'openrouter';
 
@@ -80,6 +81,7 @@ export async function escalateModel(
   currentDecision: RoutingDecision,
   event: InboundEvent,
   tools: LlmToolDefinition[],
+  settingsOverride?: RoutingSettings,
 ): Promise<RoutingDecision | null> {
   if (currentDecision.tier === 'strong') {
     return null; // Already at strongest tier
@@ -89,7 +91,7 @@ export async function escalateModel(
     return null;
   }
 
-  return routeModel(event, tools, currentDecision.model);
+  return routeModel(event, tools, currentDecision.model, settingsOverride);
 }
 
 // ── Signal Analysis ──────────────────────────────────────────
@@ -241,13 +243,45 @@ function selectModel(tier: ModelTier, signals: RoutingSignals, settings: Routing
     .sort((a, b) => b.priority - a.priority)[0];
 
   if (matchedRule) {
+    if (signals.requiresVision && !modelSupportsVision(matchedRule.model)) {
+      logger.warn(
+        { model: matchedRule.model, tier, pattern: matchedRule.pattern },
+        'Routing rule matched a non-vision model for a vision request; falling back to tier-compatible model',
+      );
+    } else {
     return matchedRule.model;
+    }
   }
+
+  return resolveTierModel(tier, signals, settings);
+}
+
+export function resolveTierModel(
+  tier: ModelTier,
+  signals: RoutingSignals,
+  settings: RoutingSettings,
+): string {
+  const standardModel = settings.primaryModel || DEFAULT_MODELS.standard;
+  const strongModel = settings.fallbackModel || DEFAULT_MODELS.strong;
 
   // If vision is needed, ensure the selected model supports it
   if (signals.requiresVision) {
-    const candidate = tier === 'cheap' ? DEFAULT_MODELS.standard : DEFAULT_MODELS[tier];
-    return VISION_MODELS.has(candidate) ? candidate : DEFAULT_MODELS.standard;
+    const candidate = tier === 'strong'
+      ? strongModel
+      : tier === 'cheap'
+        ? DEFAULT_MODELS.standard
+        : standardModel;
+
+    if (VISION_MODELS.has(candidate)) {
+      return candidate;
+    }
+    if (VISION_MODELS.has(standardModel)) {
+      return standardModel;
+    }
+    if (VISION_MODELS.has(strongModel)) {
+      return strongModel;
+    }
+    return DEFAULT_MODELS.standard;
   }
 
   // Use DB-configured primary model if it fits the tier
@@ -255,17 +289,19 @@ function selectModel(tier: ModelTier, signals: RoutingSignals, settings: Routing
     return DEFAULT_MODELS.cheap;
   }
 
-  // For standard, prefer the admin-configured primary model.
-  // Strong defaults to the strong-tier model unless overridden by a routing rule.
   if (tier === 'standard' && settings.primaryModel) {
-    return settings.primaryModel;
+    return standardModel;
   }
 
   if (tier === 'strong') {
-    return DEFAULT_MODELS.strong;
+    return strongModel;
   }
 
   return DEFAULT_MODELS[tier];
+}
+
+export function modelSupportsVision(model: string): boolean {
+  return VISION_MODELS.has(model);
 }
 
 function matchesRoutingRule(

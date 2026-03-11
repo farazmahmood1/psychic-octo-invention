@@ -122,6 +122,12 @@ export const routingSettingsSchema = z.object({
   })).optional(),
 });
 
+export const firstPartyToolSettingsSchema = z.object({
+  ghlCrmEnabled: z.boolean(),
+  bookkeepingReceiptEnabled: z.boolean(),
+  leadFollowupEnabled: z.boolean(),
+});
+
 export type PaginationQuery = z.output<typeof paginationQuerySchema>;
 export type ConversationListQuery = z.output<typeof conversationListQuerySchema>;
 export type MessageListQuery = z.output<typeof messageListQuerySchema>;
@@ -135,6 +141,7 @@ export type SkillToggleInput = z.output<typeof skillToggleSchema>;
 export type SkillIngestInput = z.output<typeof skillIngestSchema>;
 export type SkillManualOverrideInput = z.output<typeof skillManualOverrideSchema>;
 export type RoutingSettingsInput = z.output<typeof routingSettingsSchema>;
+export type FirstPartyToolSettingsInput = z.output<typeof firstPartyToolSettingsSchema>;
 export type ChangePasswordInput = z.output<typeof changePasswordSchema>;
 
 export const bookkeepingListQuerySchema = paginationQuerySchema.extend({

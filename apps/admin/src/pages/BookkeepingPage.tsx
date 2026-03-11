@@ -29,6 +29,11 @@ function formatCurrency(data: Record<string, unknown> | null): string {
   return `${currency} ${amount.toFixed(2)}`;
 }
 
+function formatMoney(value: number | null | undefined, currency: string | undefined): string {
+  if (value == null) return '-';
+  return `${currency ?? 'USD'} ${value.toFixed(2)}`;
+}
+
 function ExtractionDetail({ extraction }: { extraction: BookkeepingExtractionSummary }) {
   const d = extraction.extractedData;
   if (!d) return <p className="text-sm text-muted-foreground">No extracted data available.</p>;
@@ -41,10 +46,10 @@ function ExtractionDetail({ extraction }: { extraction: BookkeepingExtractionSum
           <p className="font-medium">{String(d['vendor'])}</p>
         </div>
       )}
-      {d['date'] != null && (
+      {d['transactionDate'] != null && (
         <div>
           <span className="text-muted-foreground">Date</span>
-          <p className="font-medium">{String(d['date'])}</p>
+          <p className="font-medium">{String(d['transactionDate'])}</p>
         </div>
       )}
       {d['amount'] != null && (
@@ -56,7 +61,7 @@ function ExtractionDetail({ extraction }: { extraction: BookkeepingExtractionSum
       {d['tax'] != null && (
         <div>
           <span className="text-muted-foreground">Tax</span>
-          <p className="font-medium">${(d['tax'] as number).toFixed(2)}</p>
+          <p className="font-medium">{formatMoney(d['tax'] as number, d['currency'] as string | undefined)}</p>
         </div>
       )}
     </div>

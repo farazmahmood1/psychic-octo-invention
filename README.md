@@ -8,6 +8,12 @@ OpenClaw Admin System is a monorepo for a multi-channel AI assistant with:
 - Sub-agents (GHL CRM, Bookkeeping, Follow-Up)
 - Admin portal for operations, usage, skills, jobs, and security events
 
+Runtime source of truth:
+- `apps/api` = active backend/API runtime
+- `apps/admin` = active admin portal runtime
+- `packages/shared` + `packages/config` = active shared contracts/config
+- Top-level `backend/` and `frontend/` are legacy reference folders and are not used by the current workspace scripts, Docker targets, or Render deployment.
+
 ## 1) Quick Start (Local)
 
 ```bash
@@ -19,6 +25,8 @@ npm run db:generate
 npm run db:migrate
 npm run seed:admin
 ```
+
+The API, worker, seed script, and admin Vite config all load the repository root `.env` automatically. Existing shell env vars still take precedence.
 
 Start Redis (recommended for reliable queue behavior):
 
@@ -63,10 +71,16 @@ Strongly recommended for demo reliability:
 - `OPENROUTER_API_KEY` (AI responses/routing)
 
 Integration-specific credentials:
-- Telegram: `TELEGRAM_BOT_TOKEN`, `TELEGRAM_WEBHOOK_SECRET`
+- Telegram: `TELEGRAM_BOT_TOKEN`, `TELEGRAM_WEBHOOK_SECRET` (optional `TELEGRAM_API_BASE_URL`, default `https://api.telegram.org`)
 - Email: `INBOUND_EMAIL_WEBHOOK_SECRET`, `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM`
 - GHL: `GHL_API_TOKEN` (+ optional `GHL_API_BASE_URL`)
 - Google Sheets: `GOOGLE_SERVICE_ACCOUNT_JSON`, `GOOGLE_SHEETS_BOOKKEEPING_SPREADSHEET_ID`
+
+Frontend / hosting / tuning:
+- Frontend dev proxy: `VITE_DEV_PROXY_TARGET` (dev server only)
+- Hosting: `APP_BASE_URL`, `ADMIN_APP_URL`, `API_BASE_URL`, optional `RENDER_EXTERNAL_URL` (Render injects this automatically)
+- Tuning: `WORKER_CONCURRENCY`, `REQUEST_TIMEOUT_MS`, `MAX_PAYLOAD_SIZE`
+- Admin seed: `ADMIN_SEED_EMAIL`, `ADMIN_SEED_PASSWORD`
 
 ## 4) API + Worker Runbook
 
@@ -100,6 +114,7 @@ Inbound email webhook target:
 ## 6) Submission Artifacts
 
 - Demo checklist: [docs/demo-checklist.md](docs/demo-checklist.md)
+- Final deployment checklist: [docs/final-deployment-checklist.md](docs/final-deployment-checklist.md)
 - Operator runbook: [docs/runbook.md](docs/runbook.md)
 - Handoff summary: [docs/handoff-summary.md](docs/handoff-summary.md)
 - Demo contingencies: [docs/demo-contingency.md](docs/demo-contingency.md)

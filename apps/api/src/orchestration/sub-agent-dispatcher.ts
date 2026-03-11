@@ -10,6 +10,7 @@ import type {
 import { GHL_CRM_TOOL_NAME, BOOKKEEPING_TOOL_NAME, FOLLOWUP_TOOL_NAME } from '@openclaw/shared';
 import { processGhlDispatch, processBookkeepingDispatch, processFollowUpDispatch } from '../services/subagents/index.js';
 import { subAgentTaskRepository } from '../repositories/sub-agent-task.repository.js';
+import { getFirstPartyToolSettings, isFirstPartyToolEnabled } from '../services/settings.service.js';
 
 /** Tool names that are handled by sub-agents rather than external skills. */
 const SUB_AGENT_TOOLS = new Set<string>([GHL_CRM_TOOL_NAME, BOOKKEEPING_TOOL_NAME, FOLLOWUP_TOOL_NAME]);
@@ -51,6 +52,14 @@ export async function processSubAgentCalls(
   const toolDispatches: ToolDispatch[] = [];
   const subAgentDispatches: SubAgentDispatch[] = [];
   const toolResults: Array<{ toolCallId: string; result: string }> = [];
+  const toolSettings = await getFirstPartyToolSettings().catch((err) => {
+    logger.warn({ err }, 'Failed to load first-party tool settings during sub-agent dispatch');
+    return {
+      ghlCrmEnabled: true,
+      bookkeepingReceiptEnabled: true,
+      leadFollowupEnabled: true,
+    };
+  });
 
   for (const tc of toolCalls) {
     if (!isSubAgentToolCall(tc.name)) continue;
@@ -58,7 +67,10 @@ export async function processSubAgentCalls(
     const args = safeParseJson(tc.arguments);
     let dispatch: SubAgentDispatch;
 
-    if (tc.name === GHL_CRM_TOOL_NAME) {
+    if (!isFirstPartyToolEnabled(tc.name, toolSettings)) {
+      logger.warn({ toolName: tc.name }, 'Blocked first-party tool call because the tool is disabled in runtime settings');
+      dispatch = buildDisabledDispatch(tc.name, args);
+    } else if (tc.name === GHL_CRM_TOOL_NAME) {
       dispatch = await executeGhlSubAgent(tc.id, args);
     } else if (tc.name === BOOKKEEPING_TOOL_NAME) {
       dispatch = await executeBookkeepingSubAgent(tc.id, args, context);
@@ -322,4 +334,20 @@ function buildToolResultText(
   }
 
   return summary;
+}
+
+function buildDisabledDispatch(
+  toolName: string,
+  input: Record<string, unknown>,
+): SubAgentDispatch {
+  return {
+    agentName: toolName,
+    taskType: typeof input['action'] === 'string' ? input['action'] : 'disabled',
+    input,
+    status: 'failed',
+    error: `${toolName} is currently disabled in admin settings.`,
+    output: {
+      summary: `${toolName} is currently disabled in admin settings.`,
+    },
+  };
 }

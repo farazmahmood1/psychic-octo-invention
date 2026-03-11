@@ -21,10 +21,12 @@ const ACTION_OPTIONS = [
   { value: 'auth.login_failed', label: 'Login Failed' },
   { value: 'auth.logout', label: 'Logout' },
   { value: 'auth.password_changed', label: 'Password Changed' },
-  { value: 'skill.toggled', label: 'Skill Toggled' },
+  { value: 'skill.enabled', label: 'Skill Enabled' },
+  { value: 'skill.disabled', label: 'Skill Disabled' },
   { value: 'skill.ingested', label: 'Skill Ingested' },
-  { value: 'setting.updated', label: 'Setting Updated' },
-  { value: 'security.skill_blocked', label: 'Skill Blocked' },
+  { value: 'skill.ingestion_blocked', label: 'Skill Ingestion Blocked' },
+  { value: 'skill.execution_blocked', label: 'Skill Execution Blocked' },
+  { value: 'settings.routing_updated', label: 'Routing Updated' },
 ];
 
 const TARGET_TYPE_OPTIONS = [

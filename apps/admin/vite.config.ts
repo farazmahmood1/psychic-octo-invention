@@ -3,6 +3,9 @@ import react from '@vitejs/plugin-react';
 import tailwindcss from 'tailwindcss';
 import autoprefixer from 'autoprefixer';
 import path from 'path';
+import { loadRepoEnv } from '../../packages/config/src/load-env';
+
+loadRepoEnv();
 
 const devProxyTarget = process.env.VITE_DEV_PROXY_TARGET || 'http://localhost:4000';
 

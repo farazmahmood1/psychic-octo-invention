@@ -240,6 +240,13 @@ export interface RoutingSettings {
   routingRules: RoutingRule[];
 }
 
+/** Runtime settings for first-party built-in tools/sub-agents */
+export interface FirstPartyToolSettings {
+  ghlCrmEnabled: boolean;
+  bookkeepingReceiptEnabled: boolean;
+  leadFollowupEnabled: boolean;
+}
+
 /** Single routing rule */
 export interface RoutingRule {
   pattern: string;

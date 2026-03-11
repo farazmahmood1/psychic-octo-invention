@@ -1,8 +1,10 @@
 import { logger } from '@openclaw/config';
+import { GHL_CRM_TOOL_NAME } from '@openclaw/shared';
 import type { GhlSubAgentJobPayload, GhlSubAgentJobResult } from '../jobs/ghl-sub-agent.job.js';
 import { toGhlJobResult, toGhlJobError } from '../jobs/ghl-sub-agent.job.js';
 import { executeGhlTask } from '../services/subagents/index.js';
 import { subAgentTaskRepository } from '../repositories/sub-agent-task.repository.js';
+import { getFirstPartyToolSettings, isFirstPartyToolEnabled } from '../services/settings.service.js';
 
 /**
  * Process a GHL sub-agent job.
@@ -13,6 +15,11 @@ import { subAgentTaskRepository } from '../repositories/sub-agent-task.repositor
 export async function processGhlSubAgentJob(
   payload: GhlSubAgentJobPayload,
 ): Promise<GhlSubAgentJobResult> {
+  const disabledError = await resolveDisabledToolError(GHL_CRM_TOOL_NAME, payload.subAgentTaskId);
+  if (disabledError) {
+    return disabledError;
+  }
+
   logger.info(
     { action: payload.input.action, conversationId: payload.conversationId },
     'Processing GHL sub-agent job',
@@ -71,4 +78,27 @@ export async function enqueueGhlSubAgentJob(
   payload: GhlSubAgentJobPayload,
 ): Promise<GhlSubAgentJobResult> {
   return processGhlSubAgentJob(payload);
+}
+
+async function resolveDisabledToolError(
+  toolName: string,
+  subAgentTaskId?: string,
+): Promise<GhlSubAgentJobResult | null> {
+  const settings = await getFirstPartyToolSettings();
+  if (isFirstPartyToolEnabled(toolName, settings)) {
+    return null;
+  }
+
+  const error = new Error(`${toolName} is currently disabled in admin settings.`);
+  logger.warn({ toolName }, 'Blocked queued first-party tool because it is disabled in runtime settings');
+
+  if (subAgentTaskId) {
+    await subAgentTaskRepository.updateStatus(subAgentTaskId, 'failed', {
+      errorDetails: { message: error.message },
+    }).catch((err) => {
+      logger.warn({ err, subAgentTaskId }, 'Failed to update disabled queued task status');
+    });
+  }
+
+  return toGhlJobError(error);
 }

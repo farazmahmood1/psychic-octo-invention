@@ -7,7 +7,7 @@ import type {
   SubAgentDispatch,
 } from '@openclaw/shared';
 import { providerRegistry } from '../services/llm/index.js';
-import { routeModel, escalateModel } from '../services/routing/index.js';
+import { routeModel, escalateModel, enforceSpendControls } from '../services/routing/index.js';
 import { retrieveMemories, extractAndStoreMemories } from '../services/memory/index.js';
 import { composePrompt, contextToMessages } from './prompt-composer.js';
 import { resolveConversation, persistMessages, loadRecentMessages } from './conversation-manager.js';
@@ -15,6 +15,8 @@ import { persistUsageLog } from './usage-tracker.js';
 import { resolveToolCatalog } from './tool-resolver.js';
 import { processSubAgentCalls, isSubAgentToolCall } from './sub-agent-dispatcher.js';
 import { executeExternalToolCalls } from './external-tool-executor.js';
+import { getRoutingSettings } from '../services/settings.service.js';
+import { usageRepository } from '../repositories/usage.repository.js';
 
 /**
  * Central execution pipeline for processing one inbound event.
@@ -34,9 +36,10 @@ export async function executeEvent(event: InboundEvent): Promise<ExecutionResult
   // 4. Resolve available tools
   const toolCatalog = await resolveToolCatalog();
   const tools = toolCatalog.tools;
+  const routingSettings = await getRoutingSettings();
 
   // 5. Route to model
-  let routing = await routeModel(event, tools);
+  let routing = await routeModel(event, tools, null, routingSettings);
 
   // 6. Compose prompt
   const recentMessages = await loadRecentMessages(conversationId);
@@ -47,6 +50,32 @@ export async function executeEvent(event: InboundEvent): Promise<ExecutionResult
     tools,
   });
   const messages = contextToMessages(promptContext);
+  const monthlyCostSoFarUsd = routingSettings.maxMonthlyBudgetUsd !== null
+    ? await usageRepository.sumCostCurrentMonth()
+    : 0;
+  let activeRequestCostUsd = 0;
+
+  const initialSpendControl = enforceSpendControls({
+    stage: 'initial',
+    routing,
+    settings: routingSettings,
+    messages,
+    tools,
+    monthlyCostSoFarUsd,
+  });
+  warnings.push(...initialSpendControl.warnings);
+  routing = initialSpendControl.routing;
+
+  if (initialSpendControl.blockedReply) {
+    return buildSpendLimitedResult(
+      conversationId,
+      inboundMessageId,
+      routing,
+      initialSpendControl.blockedReply,
+      warnings,
+      initialSpendControl.estimatedCostUsd,
+    );
+  }
 
   // 7. Call LLM
   const provider = providerRegistry.getDefault();
@@ -57,14 +86,36 @@ export async function executeEvent(event: InboundEvent): Promise<ExecutionResult
       messages,
       tools: tools.length > 0 ? tools : undefined,
       temperature: 0.7,
+      maxTokens: initialSpendControl.maxTokens ?? undefined,
     });
+    activeRequestCostUsd = response.usage.estimatedCostUsd ?? 0;
   } catch (err) {
     logger.error({ err, model: routing.model }, 'LLM provider failed');
 
-    const escalated = await escalateModel(routing, event, tools);
+    const escalated = await escalateModel(routing, event, tools, routingSettings);
     if (escalated) {
-      routing = escalated;
-      warnings.push(`Primary model failed, escalated to ${routing.model}`);
+      const escalatedSpendControl = enforceSpendControls({
+        stage: 'initial',
+        routing: escalated,
+        settings: routingSettings,
+        messages,
+        tools,
+        monthlyCostSoFarUsd,
+      });
+      warnings.push(`Primary model failed, escalated to ${escalated.model}`);
+      warnings.push(...escalatedSpendControl.warnings);
+      routing = escalatedSpendControl.routing;
+
+      if (escalatedSpendControl.blockedReply) {
+        return buildSpendLimitedResult(
+          conversationId,
+          inboundMessageId,
+          routing,
+          escalatedSpendControl.blockedReply,
+          warnings,
+          escalatedSpendControl.estimatedCostUsd,
+        );
+      }
 
       try {
         response = await provider.complete({
@@ -72,7 +123,9 @@ export async function executeEvent(event: InboundEvent): Promise<ExecutionResult
           messages,
           tools: tools.length > 0 ? tools : undefined,
           temperature: 0.7,
+          maxTokens: escalatedSpendControl.maxTokens ?? undefined,
         });
+        activeRequestCostUsd = response.usage.estimatedCostUsd ?? 0;
       } catch (retryErr) {
         logger.error({ err: retryErr, model: routing.model }, 'Escalated model also failed');
         return buildErrorResult(conversationId, inboundMessageId, routing, retryErr as Error);
@@ -144,26 +197,44 @@ export async function executeEvent(event: InboundEvent): Promise<ExecutionResult
       })),
     ];
 
-    try {
-      const followUp = await provider.complete({
-        model: routing.model,
-        messages: followUpMessages,
-        temperature: 0.7,
-      });
+    const followUpSpendControl = enforceSpendControls({
+      stage: 'follow_up',
+      routing,
+      settings: routingSettings,
+      messages: followUpMessages,
+      monthlyCostSoFarUsd: monthlyCostSoFarUsd + activeRequestCostUsd,
+      requestCostSpentUsd: activeRequestCostUsd,
+      allowDowngrade: false,
+    });
+    warnings.push(...followUpSpendControl.warnings);
 
-      finalReply = followUp.content;
-
-      response.usage.promptTokens += followUp.usage.promptTokens;
-      response.usage.completionTokens += followUp.usage.completionTokens;
-      response.usage.totalTokens += followUp.usage.totalTokens;
-      if (response.usage.estimatedCostUsd !== null && followUp.usage.estimatedCostUsd !== null) {
-        response.usage.estimatedCostUsd += followUp.usage.estimatedCostUsd;
-      }
-      response.latencyMs += followUp.latencyMs;
-    } catch (followUpErr) {
-      logger.warn({ err: followUpErr }, 'Follow-up LLM call after tool execution failed');
-      warnings.push('Follow-up LLM call failed, using tool results directly');
+    if (followUpSpendControl.blockedReply) {
+      warnings.push('Follow-up LLM synthesis skipped due to spend controls');
       finalReply = allToolResults.map((tr) => tr.result).join('\n\n');
+    } else {
+      try {
+        const followUp = await provider.complete({
+          model: routing.model,
+          messages: followUpMessages,
+          temperature: 0.7,
+          maxTokens: followUpSpendControl.maxTokens ?? undefined,
+        });
+
+        finalReply = followUp.content;
+
+        response.usage.promptTokens += followUp.usage.promptTokens;
+        response.usage.completionTokens += followUp.usage.completionTokens;
+        response.usage.totalTokens += followUp.usage.totalTokens;
+        if (response.usage.estimatedCostUsd !== null && followUp.usage.estimatedCostUsd !== null) {
+          response.usage.estimatedCostUsd += followUp.usage.estimatedCostUsd;
+        }
+        activeRequestCostUsd = response.usage.estimatedCostUsd ?? activeRequestCostUsd;
+        response.latencyMs += followUp.latencyMs;
+      } catch (followUpErr) {
+        logger.warn({ err: followUpErr }, 'Follow-up LLM call after tool execution failed');
+        warnings.push('Follow-up LLM call failed, using tool results directly');
+        finalReply = allToolResults.map((tr) => tr.result).join('\n\n');
+      }
     }
   }
 
@@ -303,5 +374,49 @@ async function buildErrorResult(
     conversationId,
     messageId: replyMessageId,
     warnings: [`Provider error: ${error.message}`],
+  };
+}
+
+async function buildSpendLimitedResult(
+  conversationId: string,
+  inboundMessageId: string,
+  routing: ExecutionResult['routing'],
+  reply: string,
+  warnings: string[],
+  estimatedCostUsd: number | null,
+): Promise<ExecutionResult> {
+  let replyMessageId = inboundMessageId;
+  try {
+    replyMessageId = await persistMessages.outbound(reply, conversationId, inboundMessageId, {
+      metadata: {
+        routing: {
+          provider: routing.provider,
+          model: routing.model,
+          tier: routing.tier,
+          reason: routing.reason,
+          escalatedFrom: routing.escalatedFrom,
+          signals: routing.signals,
+        },
+        usage: {
+          estimatedCostUsd,
+        },
+        warnings,
+      },
+      tokenUsage: 0,
+    });
+  } catch (persistErr) {
+    logger.error({ err: persistErr, conversationId }, 'Failed to persist spend-limited reply');
+  }
+
+  return {
+    reply,
+    memoryWrites: [],
+    usage: { promptTokens: 0, completionTokens: 0, totalTokens: 0, estimatedCostUsd: estimatedCostUsd ?? null },
+    routing,
+    toolDispatches: [],
+    subAgentDispatches: [],
+    conversationId,
+    messageId: replyMessageId,
+    warnings,
   };
 }

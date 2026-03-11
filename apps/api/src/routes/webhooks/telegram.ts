@@ -4,7 +4,7 @@ import { env, logger } from '@openclaw/config';
 import { HTTP_STATUS } from '@openclaw/shared';
 import type { TelegramUpdate } from '@openclaw/shared';
 import { normalizeTelegramUpdate } from '../../integrations/telegram/normalizer.js';
-import { sendChatAction } from '../../integrations/telegram/client.js';
+import { sendChatAction, sendMessage } from '../../integrations/telegram/client.js';
 import { telegramChatRepository } from '../../repositories/telegram-chat.repository.js';
 import { executeEvent } from '../../orchestration/index.js';
 import { deliverToTelegram } from '../../services/channels/index.js';
@@ -20,6 +20,7 @@ const MAX_PROCESSED_IDS = 10_000;
 const TELEGRAM_DEDUPE_TTL_SECONDS = 24 * 60 * 60;
 const TELEGRAM_DEDUPE_KEY_PREFIX = 'dedupe:telegram:update';
 const TELEGRAM_TYPING_KEEPALIVE_MS = 4_000;
+const TELEGRAM_ERROR_FALLBACK_REPLY = 'Sorry, I ran into an internal error while processing that. Please try again.';
 
 telegramWebhookRouter.post('/', (req: Request, res: Response) => {
   void handleTelegramWebhook(req, res);
@@ -117,6 +118,14 @@ async function handleTelegramWebhook(req: Request, res: Response): Promise<void>
     res.status(HTTP_STATUS.OK).json({ ok: true });
   } catch (err) {
     logger.error({ err, updateId: update.update_id, chatId }, 'Telegram webhook processing error');
+
+    // Best-effort fallback so users aren't left without any response.
+    try {
+      await sendMessage(chatId, TELEGRAM_ERROR_FALLBACK_REPLY);
+    } catch (notifyErr) {
+      logger.error({ err: notifyErr, chatId, updateId: update.update_id }, 'Failed to send Telegram fallback error reply');
+    }
+
     // Return 200 to prevent runaway retries by Telegram
     res.status(HTTP_STATUS.OK).json({ ok: true });
   } finally {

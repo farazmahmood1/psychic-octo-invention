@@ -7,6 +7,7 @@
 - `apps/admin`: React admin portal (conversations, usage, skills, security, jobs, integrations).
 - `packages/shared`: shared types/schemas/constants.
 - `packages/config`: env validation + logger config.
+- Top-level `backend/` and `frontend/` are legacy reference directories only; current runtime, tests, Docker targets, and Render deploys use the `apps/*` workspace paths above.
 
 ## Request Flow (Telegram/Email)
 

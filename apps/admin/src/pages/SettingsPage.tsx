@@ -11,16 +11,24 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ConfirmDialog } from '@/components/confirm-dialog';
-import type { RoutingSettings } from '@openclaw/shared';
+import type { RoutingSettings, FirstPartyToolSettings } from '@openclaw/shared';
 import { Plus, Trash2 } from 'lucide-react';
 
-const EMPTY_SETTINGS: { data: RoutingSettings } = {
+const EMPTY_ROUTING_SETTINGS: { data: RoutingSettings } = {
   data: {
     primaryModel: '',
     fallbackModel: null,
     maxCostPerRequestUsd: null,
     maxMonthlyBudgetUsd: null,
     routingRules: [],
+  },
+};
+
+const EMPTY_TOOL_SETTINGS: { data: FirstPartyToolSettings } = {
+  data: {
+    ghlCrmEnabled: true,
+    bookkeepingReceiptEnabled: true,
+    leadFollowupEnabled: true,
   },
 };
 
@@ -108,7 +116,7 @@ interface RuleRow {
 }
 
 function RoutingSettingsForm() {
-  const { data, loading } = useApiQuery<{ data: RoutingSettings }>('/settings/routing', EMPTY_SETTINGS);
+  const { data, loading } = useApiQuery<{ data: RoutingSettings }>('/settings/routing', EMPTY_ROUTING_SETTINGS);
   const { toast } = useToast();
 
   const [primaryModel, setPrimaryModel] = useState('');
@@ -311,6 +319,126 @@ function RoutingSettingsForm() {
   );
 }
 
+function FirstPartyToolsForm() {
+  const { data, loading } = useApiQuery<{ data: FirstPartyToolSettings }>('/settings/tools', EMPTY_TOOL_SETTINGS);
+  const { toast } = useToast();
+  const [ghlCrmEnabled, setGhlCrmEnabled] = useState(true);
+  const [bookkeepingReceiptEnabled, setBookkeepingReceiptEnabled] = useState(true);
+  const [leadFollowupEnabled, setLeadFollowupEnabled] = useState(true);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (data?.data) {
+      setGhlCrmEnabled(data.data.ghlCrmEnabled);
+      setBookkeepingReceiptEnabled(data.data.bookkeepingReceiptEnabled);
+      setLeadFollowupEnabled(data.data.leadFollowupEnabled);
+    }
+  }, [data]);
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      await apiClient.patch('/settings/tools', {
+        ghlCrmEnabled,
+        bookkeepingReceiptEnabled,
+        leadFollowupEnabled,
+      });
+      toast('success', 'Built-in tool settings saved successfully.');
+    } catch (err) {
+      if (err instanceof ApiClientError) {
+        toast('error', err.message);
+      } else {
+        toast('error', 'Failed to save built-in tool settings.');
+      }
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <Card>
+        <CardHeader>
+          <Skeleton className="h-5 w-48" />
+          <Skeleton className="mt-2 h-4 w-72" />
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <Skeleton className="h-16 w-full" />
+          <Skeleton className="h-16 w-full" />
+          <Skeleton className="h-16 w-full" />
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-base">Built-In Tools</CardTitle>
+        <CardDescription>
+          These toggles control whether first-party tools are exposed to the model and whether runtime dispatch is allowed.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <ToolToggleRow
+          title="GHL CRM"
+          description="Enables the built-in ghl_crm sub-agent for contact lookup and updates."
+          checked={ghlCrmEnabled}
+          onChange={setGhlCrmEnabled}
+        />
+        <ToolToggleRow
+          title="Bookkeeping Receipt"
+          description="Enables the built-in bookkeeping_receipt flow for receipt extraction, clarification, and Sheets export."
+          checked={bookkeepingReceiptEnabled}
+          onChange={setBookkeepingReceiptEnabled}
+        />
+        <ToolToggleRow
+          title="Lead Follow-Up"
+          description="Enables the built-in lead_followup sub-agent for stale lead detection and draft follow-up workflows."
+          checked={leadFollowupEnabled}
+          onChange={setLeadFollowupEnabled}
+        />
+
+        <div className="flex justify-end">
+          <ConfirmDialog
+            trigger={
+              <Button disabled={saving}>
+                {saving ? 'Saving...' : 'Save Tool Settings'}
+              </Button>
+            }
+            title="Save Built-In Tool Settings"
+            description="This will immediately change which first-party tools can run at runtime. Are you sure?"
+            confirmLabel="Save"
+            onConfirm={handleSave}
+          />
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function ToolToggleRow(props: {
+  title: string;
+  description: string;
+  checked: boolean;
+  onChange: (checked: boolean) => void;
+}) {
+  return (
+    <label className="flex items-start justify-between gap-4 rounded-lg border p-4">
+      <div className="space-y-1">
+        <div className="text-sm font-medium">{props.title}</div>
+        <p className="text-sm text-muted-foreground">{props.description}</p>
+      </div>
+      <input
+        type="checkbox"
+        className="mt-1 h-4 w-4 accent-primary"
+        checked={props.checked}
+        onChange={(e) => props.onChange(e.target.checked)}
+      />
+    </label>
+  );
+}
+
 function formatRole(role: string): string {
   return role.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
 }
@@ -355,6 +483,9 @@ export function SettingsPage() {
 
       {/* Model routing config */}
       <RoutingSettingsForm />
+
+      {/* Built-in tool runtime controls */}
+      <FirstPartyToolsForm />
     </div>
   );
 }

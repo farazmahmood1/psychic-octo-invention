@@ -19,6 +19,7 @@ import {
   skillIngestSchema,
   skillManualOverrideSchema,
   routingSettingsSchema,
+  firstPartyToolSettingsSchema,
   bookkeepingListQuerySchema,
   securityEventsQuerySchema,
 } from '../schemas/api.js';
@@ -313,6 +314,27 @@ describe('routingSettingsSchema', () => {
   it('rejects cost > 10', () => {
     expect(() =>
       routingSettingsSchema.parse({ primaryModel: 'test', maxCostPerRequestUsd: 11 }),
+    ).toThrow();
+  });
+});
+
+describe('firstPartyToolSettingsSchema', () => {
+  it('accepts valid built-in tool toggles', () => {
+    const result = firstPartyToolSettingsSchema.parse({
+      ghlCrmEnabled: true,
+      bookkeepingReceiptEnabled: false,
+      leadFollowupEnabled: true,
+    });
+    expect(result.bookkeepingReceiptEnabled).toBe(false);
+  });
+
+  it('rejects non-boolean toggle values', () => {
+    expect(() =>
+      firstPartyToolSettingsSchema.parse({
+        ghlCrmEnabled: 'yes',
+        bookkeepingReceiptEnabled: true,
+        leadFollowupEnabled: true,
+      }),
     ).toThrow();
   });
 });

@@ -12,6 +12,7 @@ import {
   Activity,
   Receipt,
   ShieldAlert,
+  Brain,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -37,6 +38,7 @@ const navItems: NavItem[] = [
   { to: '/dashboard/skills', label: 'Skills', icon: Puzzle, minRole: 'admin' },
   { to: '/dashboard/jobs', label: 'Jobs', icon: Activity, minRole: 'admin' },
   { to: '/dashboard/bookkeeping', label: 'Bookkeeping', icon: Receipt, minRole: 'admin' },
+  { to: '/dashboard/memory', label: 'Memory', icon: Brain, minRole: 'admin' },
   { to: '/dashboard/audit', label: 'Audit Log', icon: Shield, minRole: 'admin' },
   { to: '/dashboard/security', label: 'Security', icon: ShieldAlert, minRole: 'admin' },
   { to: '/dashboard/integrations', label: 'Integrations', icon: Plug, minRole: 'admin' },
@@ -59,6 +61,7 @@ function getPageTitle(pathname: string): string {
     settings: 'Settings',
     jobs: 'Jobs & Tasks',
     bookkeeping: 'Bookkeeping',
+    memory: 'Memory',
     security: 'Security',
   };
   // Handle conversation detail pages

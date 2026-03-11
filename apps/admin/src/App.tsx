@@ -13,6 +13,7 @@ import { IntegrationsPage } from './pages/IntegrationsPage';
 import { JobsPage } from './pages/JobsPage';
 import { BookkeepingPage } from './pages/BookkeepingPage';
 import { SecurityPage } from './pages/SecurityPage';
+import { MemoryPage } from './pages/MemoryPage';
 
 export function App() {
   return (
@@ -35,6 +36,7 @@ export function App() {
         <Route path="integrations" element={<IntegrationsPage />} />
         <Route path="jobs" element={<JobsPage />} />
         <Route path="bookkeeping" element={<BookkeepingPage />} />
+        <Route path="memory" element={<MemoryPage />} />
         <Route path="security" element={<SecurityPage />} />
         <Route path="settings" element={<SettingsPage />} />
       </Route>

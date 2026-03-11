@@ -87,9 +87,9 @@ function MessageBubble({ message }: { message: MessageRecord }) {
                 <div key={i} className="flex items-center gap-1.5 text-xs opacity-80">
                   <Paperclip className="h-3 w-3" />
                   <span>{String(att['fileName'] ?? att['type'] ?? `Attachment ${i + 1}`)}</span>
-                  {att['fileSize'] != null && (
+                  {att['sizeBytes'] != null && (
                     <span className="opacity-60">
-                      ({Math.round((att['fileSize'] as number) / 1024)}KB)
+                      ({Math.round((att['sizeBytes'] as number) / 1024)}KB)
                     </span>
                   )}
                 </div>

@@ -3,10 +3,11 @@ import { GHL_CRM_TOOL_NAME, GHL_EDITABLE_FIELDS, BOOKKEEPING_TOOL_NAME, BOOKKEEP
 import { prisma } from '../db/client.js';
 import { logger } from '@openclaw/config';
 import { skillExecutionGuard } from '../security/execution-guard.js';
+import { getFirstPartyToolSettings, isFirstPartyToolEnabled } from '../services/settings.service.js';
 
 /**
  * Built-in tool definition for the GHL CRM sub-agent.
- * This is always available — it's a first-party integration, not an external skill.
+ * This is first-party and can be runtime-disabled via admin settings.
  */
 const GHL_CRM_TOOL: LlmToolDefinition = {
   name: GHL_CRM_TOOL_NAME,
@@ -51,7 +52,7 @@ IMPORTANT:
 
 /**
  * Built-in tool definition for the Bookkeeping receipt sub-agent.
- * Always available — first-party integration.
+ * First-party integration that can be runtime-disabled via admin settings.
  */
 const BOOKKEEPING_TOOL: LlmToolDefinition = {
   name: BOOKKEEPING_TOOL_NAME,
@@ -100,7 +101,7 @@ IMPORTANT:
 
 /**
  * Built-in tool definition for the Lead Follow-Up sub-agent.
- * Always available — first-party integration.
+ * First-party integration that can be runtime-disabled via admin settings.
  */
 const FOLLOWUP_TOOL: LlmToolDefinition = {
   name: FOLLOWUP_TOOL_NAME,
@@ -169,13 +170,14 @@ export interface ResolvedToolCatalog {
 
 /**
  * Resolve currently available tools from enabled, vetted skills
- * plus built-in sub-agent tools (GHL CRM, Bookkeeping, Follow-Up).
+ * plus built-in sub-agent tools (GHL CRM, Bookkeeping, Follow-Up)
+ * that remain enabled in runtime settings.
  *
  * Security enforcement:
  * - Only skills that are enabled AND have passed vetting are exposed
  * - The execution guard performs additional runtime checks
  * - Blocked skills are logged via audit trail
- * - Built-in sub-agent tools are always included
+ * - Built-in sub-agent tools are filtered by runtime settings
  */
 export async function resolveTools(): Promise<LlmToolDefinition[]> {
   const catalog = await resolveToolCatalog();
@@ -183,9 +185,24 @@ export async function resolveTools(): Promise<LlmToolDefinition[]> {
 }
 
 export async function resolveToolCatalog(): Promise<ResolvedToolCatalog> {
-  // Start with built-in sub-agent tools
-  const tools: LlmToolDefinition[] = [GHL_CRM_TOOL, BOOKKEEPING_TOOL, FOLLOWUP_TOOL];
+  const builtInTools = [GHL_CRM_TOOL, BOOKKEEPING_TOOL, FOLLOWUP_TOOL];
+  let tools: LlmToolDefinition[] = builtInTools;
   const externalToolsByName = new Map<string, ExternalSkillToolRuntime>();
+
+  try {
+    const firstPartyToolSettings = await getFirstPartyToolSettings();
+    tools = builtInTools.filter((tool) => isFirstPartyToolEnabled(tool.name, firstPartyToolSettings));
+
+    const disabledBuiltInTools = builtInTools
+      .filter((tool) => !isFirstPartyToolEnabled(tool.name, firstPartyToolSettings))
+      .map((tool) => tool.name);
+
+    if (disabledBuiltInTools.length > 0) {
+      logger.info({ disabledBuiltInTools }, 'Built-in tool catalog filtered by runtime settings');
+    }
+  } catch (err) {
+    logger.warn({ err }, 'Failed to load first-party tool settings, defaulting built-in tools to enabled');
+  }
 
   try {
     const skills = await prisma.skill.findMany({

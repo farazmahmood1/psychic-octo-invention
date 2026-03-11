@@ -4,6 +4,7 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { routeModel, escalateModel } from '../../services/routing/model-router.js';
+import { getRoutingSettings } from '../../services/settings.service.js';
 import {
   createSimpleInboundEvent,
   createComplexInboundEvent,
@@ -23,6 +24,16 @@ vi.mock('../../services/settings.service.js', () => ({
 }));
 
 describe('Model Router', () => {
+  beforeEach(() => {
+    vi.mocked(getRoutingSettings).mockResolvedValue({
+      primaryModel: 'anthropic/claude-sonnet-4',
+      fallbackModel: null,
+      maxCostPerRequestUsd: null,
+      maxMonthlyBudgetUsd: null,
+      routingRules: [],
+    });
+  });
+
   describe('STORY-T4: simple task uses cheap model', () => {
     it('routes "Hi" to cheap tier', async () => {
       const event = createSimpleInboundEvent();
@@ -143,6 +154,22 @@ describe('Model Router', () => {
       const result = await escalateModel(initial, event, []);
 
       expect(result).toBeNull();
+    });
+
+    it('uses the admin-configured fallback model for strong-tier escalation', async () => {
+      vi.mocked(getRoutingSettings).mockResolvedValueOnce({
+        primaryModel: 'anthropic/claude-sonnet-4',
+        fallbackModel: 'openai/gpt-4o',
+        maxCostPerRequestUsd: null,
+        maxMonthlyBudgetUsd: null,
+        routingRules: [],
+      });
+
+      const event = createComplexInboundEvent();
+      const decision = await routeModel(event, []);
+
+      expect(decision.tier).toBe('strong');
+      expect(decision.model).toBe('openai/gpt-4o');
     });
   });
 });

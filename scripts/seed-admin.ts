@@ -7,6 +7,9 @@
 
 import { PrismaClient } from '@prisma/client';
 import * as argon2 from 'argon2';
+import { loadRepoEnv } from '../packages/config/src/load-env.js';
+
+loadRepoEnv();
 
 const prisma = new PrismaClient();
 

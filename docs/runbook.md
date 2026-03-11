@@ -5,6 +5,7 @@
 - `API`: serves HTTP routes, webhooks, auth/admin APIs, health checks.
 - `Worker`: processes BullMQ jobs (orchestration, delivery, email processing, sub-agent jobs).
 - `Redis`: required for strongest queue reliability and shared idempotency.
+- Active runtime code lives in `apps/api`, `apps/admin`, `packages/shared`, and `packages/config`. Top-level `backend/` and `frontend/` are legacy reference folders and are not used by the active npm workspace scripts.
 
 ## Start Order
 
@@ -27,6 +28,8 @@ npm run dev:api
 npm run dev:worker
 npm run dev:admin
 ```
+
+For the full handoff sequence, use [docs/final-deployment-checklist.md](./final-deployment-checklist.md).
 
 ## Production Commands
 
