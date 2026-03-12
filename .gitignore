@@ -12,3 +12,5 @@ Thumbs.db
 coverage/
 .turbo/
 tmp/
+playwright-report/
+test-results/

@@ -1,5 +1,3 @@
-version: '3.9'
-
 services:
   api:
     build:
@@ -11,8 +9,11 @@ services:
       - .env
     environment:
       - REDIS_URL=redis://redis:6379
+      - DATABASE_URL=postgresql://openclaw:openclaw_dev@postgres:5432/openclaw_dev
     depends_on:
       redis:
+        condition: service_healthy
+      postgres:
         condition: service_healthy
     volumes:
       - ./apps/api/src:/app/apps/api/src
@@ -33,8 +34,11 @@ services:
       - .env
     environment:
       - REDIS_URL=redis://redis:6379
+      - DATABASE_URL=postgresql://openclaw:openclaw_dev@postgres:5432/openclaw_dev
     depends_on:
       redis:
+        condition: service_healthy
+      postgres:
         condition: service_healthy
     volumes:
       - ./apps/api/src:/app/apps/api/src
@@ -53,8 +57,26 @@ services:
       - VITE_DEV_PROXY_TARGET=http://api:4000
     volumes:
       - ./apps/admin:/app/apps/admin
+      - ./packages:/app/packages
     working_dir: /app
     command: npx vite --host 0.0.0.0 apps/admin
+
+  # Local dev only — production uses Neon cloud
+  postgres:
+    image: postgres:16-alpine
+    ports:
+      - '5432:5432'
+    environment:
+      POSTGRES_USER: openclaw
+      POSTGRES_PASSWORD: openclaw_dev
+      POSTGRES_DB: openclaw_dev
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U openclaw -d openclaw_dev']
+      interval: 10s
+      timeout: 3s
+      retries: 3
 
   redis:
     image: redis:7-alpine
@@ -69,4 +91,5 @@ services:
       retries: 3
 
 volumes:
+  postgres_data:
   redis_data:

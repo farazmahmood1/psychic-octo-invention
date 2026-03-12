@@ -81,7 +81,20 @@ function loadEnv(): Env {
   return result.data;
 }
 
-export const env = loadEnv();
+const rawEnv = loadEnv();
+
+/**
+ * Resolved environment with production-aware defaults.
+ *
+ * APP_BASE_URL falls back to RENDER_EXTERNAL_URL (auto-injected by Render)
+ * so deployments work without manually duplicating the URL.
+ */
+export const env: Env = {
+  ...rawEnv,
+  APP_BASE_URL: rawEnv.APP_BASE_URL !== 'http://localhost:4000'
+    ? rawEnv.APP_BASE_URL
+    : (rawEnv.RENDER_EXTERNAL_URL ?? rawEnv.APP_BASE_URL),
+};
 
 function hasConfiguredValue(value: string | undefined): boolean {
   if (!value) return false;

@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(find:*)",
+      "Bash(grep:*)",
+      "Bash(npm ls:*)",
+      "Bash(npm audit:*)",
+      "Bash(npx prisma validate:*)",
+      "Bash(npx vitest run:*)",
+      "Bash(docker:*)",
+      "Bash(curl:*)"
+    ]
+  }
+}
