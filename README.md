@@ -47,7 +47,7 @@ npm run dev:admin
 npm run dev:worker
 ```
 
-Admin UI: `http://localhost:5173`  
+Admin UI: `http://localhost:5173` (`http://127.0.0.1:4173` on Windows by default)  
 API: `http://localhost:4000`
 
 ## 2) Build and Run (Production-style)
@@ -71,13 +71,14 @@ Strongly recommended for demo reliability:
 - `OPENROUTER_API_KEY` (AI responses/routing)
 
 Integration-specific credentials:
-- Telegram: `TELEGRAM_BOT_TOKEN`, `TELEGRAM_WEBHOOK_SECRET` (optional `TELEGRAM_API_BASE_URL`, default `https://api.telegram.org`)
+- Telegram: `TELEGRAM_BOT_TOKEN` (required), `TELEGRAM_WEBHOOK_SECRET` for webhook mode (optional `TELEGRAM_API_BASE_URL`, default `https://api.telegram.org`)
 - Email: `INBOUND_EMAIL_WEBHOOK_SECRET`, `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM`
 - GHL: `GHL_API_TOKEN` (+ optional `GHL_API_BASE_URL`)
 - Google Sheets: `GOOGLE_SERVICE_ACCOUNT_JSON`, `GOOGLE_SHEETS_BOOKKEEPING_SPREADSHEET_ID`
 
 Frontend / hosting / tuning:
 - Frontend dev proxy: `VITE_DEV_PROXY_TARGET` (dev server only)
+- Frontend dev bind overrides: `VITE_DEV_HOST`, `VITE_DEV_PORT` (dev server only)
 - Hosting: `APP_BASE_URL`, `ADMIN_APP_URL`, `API_BASE_URL`, optional `RENDER_EXTERNAL_URL` (Render injects this automatically)
 - Tuning: `WORKER_CONCURRENCY`, `REQUEST_TIMEOUT_MS`, `MAX_PAYLOAD_SIZE`
 - Admin seed: `ADMIN_SEED_EMAIL`, `ADMIN_SEED_PASSWORD`
@@ -106,6 +107,10 @@ curl -X POST "https://api.telegram.org/bot<TOKEN>/setWebhook" \
     "allowed_updates": ["message"]
   }'
 ```
+
+Local development note:
+- If `API_BASE_URL`/`APP_BASE_URL` only point to `localhost`, the API now falls back to Telegram long polling in development.
+- To use webhook mode locally, provide a public HTTPS URL (for example, a tunnel) plus `TELEGRAM_WEBHOOK_SECRET`.
 
 Inbound email webhook target:
 - `POST https://<api-domain>/webhooks/email`

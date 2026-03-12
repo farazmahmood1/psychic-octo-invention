@@ -8,7 +8,10 @@
       "Bash(npx prisma validate:*)",
       "Bash(npx vitest run:*)",
       "Bash(docker:*)",
-      "Bash(curl:*)"
+      "Bash(curl:*)",
+      "Bash(printf '{\"\"\"\"email\"\"\"\":\"\"\"\"admin00123456@mail.com\"\"\"\",\"\"\"\"password\"\"\"\":\"\"\"\"OpenClawAdmin123!\"\"\"\"}')",
+      "Bash(npx tsx -e \":*)",
+      "Bash(npx tsx:*)"
     ]
   }
 }

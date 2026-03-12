@@ -63,10 +63,12 @@ export function globalErrorHandler(
 
   // Unexpected errors
   logger.error({ requestId, err }, 'Unhandled error');
+  console.error('UNHANDLED ERROR DETAILS:', err);
   res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
     error: {
       code: 'INTERNAL_ERROR',
       message: 'An unexpected error occurred',
+      ...(process.env['NODE_ENV'] === 'development' ? { debug: { name: err.name, message: err.message, stack: err.stack } } : {}),
     },
   });
 }

@@ -7,6 +7,7 @@ export function logRuntimeWarnings(processType: ProcessType): void {
     redis: integrationConfigured.redis(),
     openrouter: integrationConfigured.openrouter(),
     telegram: integrationConfigured.telegram(),
+    telegramWebhook: integrationConfigured.telegramWebhook(),
     emailSmtp: integrationConfigured.email(),
     emailWebhook: integrationConfigured.emailWebhook(),
     ghl: integrationConfigured.ghl(),
@@ -33,7 +34,11 @@ export function logRuntimeWarnings(processType: ProcessType): void {
     logger.warn('OPENROUTER_API_KEY is missing or placeholder. AI response and tool orchestration paths will fail.');
   }
   if (!summary.telegram) {
-    logger.warn('Telegram integration is not fully configured (bot token + webhook secret). Telegram demo paths are disabled.');
+    logger.warn('TELEGRAM_BOT_TOKEN is missing or placeholder. Telegram integration is disabled.');
+  } else if (!summary.telegramWebhook) {
+    logger.warn(
+      'TELEGRAM_WEBHOOK_SECRET is missing or placeholder. Telegram will use polling fallback outside production until webhook settings are completed.',
+    );
   }
   if (!summary.emailSmtp) {
     logger.warn('SMTP credentials are incomplete. Outbound email replies are disabled.');

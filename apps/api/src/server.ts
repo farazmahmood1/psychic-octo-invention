@@ -5,19 +5,19 @@ import { closeRedis } from './db/redis.js';
 import { closeQueues } from './queues/index.js';
 import { resumePendingEmailJobs } from './workers/index.js';
 import { logRuntimeWarnings } from './config/runtime-warnings.js';
-import { setWebhook } from './integrations/telegram/client.js';
+import { startTelegramRuntime, type TelegramRuntimeHandle } from './integrations/telegram/runtime.js';
 
 const PORT = env.PORT;
 const SHUTDOWN_TIMEOUT_MS = 15_000;
 const EMAIL_RECOVERY_INTERVAL_MS = 5 * 60 * 1000;
-const TELEGRAM_WEBHOOK_PATH = '/webhooks/telegram';
 
 const app = createApp();
+let telegramRuntime: TelegramRuntimeHandle | null = null;
 
 const server = app.listen(PORT, () => {
   logger.info({ port: PORT, env: env.NODE_ENV }, `API server started on port ${PORT}`);
   logRuntimeWarnings('api');
-  void ensureTelegramWebhookRegistered();
+  void bootstrapTelegramRuntime();
   void runEmailRecoverySweep();
 });
 
@@ -53,6 +53,12 @@ async function shutdown(signal: string) {
       server.close((err) => (err ? reject(err) : resolve()));
     });
     logger.info('HTTP server closed');
+
+    if (telegramRuntime) {
+      await telegramRuntime.stop();
+      logger.info({ mode: telegramRuntime.mode }, 'Telegram runtime stopped');
+      telegramRuntime = null;
+    }
 
     // 2. Close BullMQ queues
     await closeQueues();
@@ -101,54 +107,10 @@ async function runEmailRecoverySweep(): Promise<void> {
   }
 }
 
-async function ensureTelegramWebhookRegistered(): Promise<void> {
+async function bootstrapTelegramRuntime(): Promise<void> {
   if (!integrationConfigured.telegram()) {
     return;
   }
 
-  const baseUrl = resolveTelegramWebhookBaseUrl();
-  if (!baseUrl) {
-    logger.warn(
-      'Skipping Telegram webhook auto-registration: no valid public base URL (set API_BASE_URL or use Render external URL).',
-    );
-    return;
-  }
-
-  const webhookUrl = `${baseUrl}${TELEGRAM_WEBHOOK_PATH}`;
-
-  const registered = await setWebhook(webhookUrl, {
-    secretToken: env.TELEGRAM_WEBHOOK_SECRET,
-    allowedUpdates: ['message'],
-  });
-
-  if (registered) {
-    logger.info({ webhookUrl }, 'Telegram webhook ensured on startup');
-  } else {
-    logger.error({ webhookUrl }, 'Failed to ensure Telegram webhook on startup');
-  }
-}
-
-function resolveTelegramWebhookBaseUrl(): string | null {
-  const candidates = [env.API_BASE_URL, env.RENDER_EXTERNAL_URL, env.APP_BASE_URL];
-
-  for (const candidate of candidates) {
-    if (!candidate) continue;
-    const trimmed = candidate.trim();
-    if (!trimmed) continue;
-
-    const normalized = trimmed.replace(/\/+$/, '');
-    const isHttps = normalized.startsWith('https://');
-    const isLocal = normalized.includes('localhost') || normalized.includes('127.0.0.1');
-
-    if (env.NODE_ENV === 'production') {
-      if (isHttps && !isLocal) {
-        return normalized;
-      }
-      continue;
-    }
-
-    return normalized;
-  }
-
-  return null;
+  telegramRuntime = await startTelegramRuntime();
 }

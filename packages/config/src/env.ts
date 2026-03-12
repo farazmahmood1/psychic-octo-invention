@@ -107,7 +107,8 @@ function hasConfiguredValue(value: string | undefined): boolean {
 export const integrationConfigured = {
   redis: () => !!env.REDIS_URL,
   openrouter: () => hasConfiguredValue(env.OPENROUTER_API_KEY),
-  telegram: () => hasConfiguredValue(env.TELEGRAM_BOT_TOKEN) && hasConfiguredValue(env.TELEGRAM_WEBHOOK_SECRET),
+  telegram: () => hasConfiguredValue(env.TELEGRAM_BOT_TOKEN),
+  telegramWebhook: () => hasConfiguredValue(env.TELEGRAM_BOT_TOKEN) && hasConfiguredValue(env.TELEGRAM_WEBHOOK_SECRET),
   email: () => !!env.SMTP_HOST && !!env.SMTP_USER && !!env.SMTP_PASS && !!env.SMTP_FROM,
   emailWebhook: () => hasConfiguredValue(env.INBOUND_EMAIL_WEBHOOK_SECRET),
   ghl: () => hasConfiguredValue(env.GHL_API_TOKEN),

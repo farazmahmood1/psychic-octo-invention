@@ -1,32 +1,50 @@
 import { env, logger } from '@openclaw/config';
-import type { TelegramSendResult } from '@openclaw/shared';
+import type { TelegramSendResult, TelegramUpdate } from '@openclaw/shared';
 
 const TELEGRAM_API_BASE_ROOT = env.TELEGRAM_API_BASE_URL.replace(/\/+$/, '');
 const TELEGRAM_API_BASE = `${TELEGRAM_API_BASE_ROOT}/bot${env.TELEGRAM_BOT_TOKEN}`;
 const TIMEOUT_MS = 30_000;
 const MAX_RETRIES = 2;
 
+interface TelegramCallOptions {
+  timeoutMs?: number;
+}
+
+interface TelegramApiResult<T> {
+  ok: boolean;
+  result?: T;
+  description?: string;
+  error_code?: number;
+}
+
 /**
  * Low-level Telegram Bot API client.
  * Handles HTTP calls, retries on transient errors, and timeout management.
  */
 
-async function callApi<T>(method: string, body: Record<string, unknown>): Promise<T> {
+async function callApi<T>(
+  method: string,
+  body: Record<string, unknown>,
+  options?: TelegramCallOptions,
+): Promise<T> {
   let lastError: Error | null = null;
+  const timeoutMs = options?.timeoutMs ?? TIMEOUT_MS;
 
   for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
     try {
       const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), TIMEOUT_MS);
-
-      const res = await fetch(`${TELEGRAM_API_BASE}/${method}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
-        signal: controller.signal,
-      });
-
-      clearTimeout(timeout);
+      const timeout = setTimeout(() => controller.abort(), timeoutMs);
+      let res: Response;
+      try {
+        res = await fetch(`${TELEGRAM_API_BASE}/${method}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+          signal: controller.signal,
+        });
+      } finally {
+        clearTimeout(timeout);
+      }
 
       if (res.ok) {
         return (await res.json()) as T;
@@ -50,7 +68,7 @@ async function callApi<T>(method: string, body: Record<string, unknown>): Promis
       }
     } catch (err) {
       if (err instanceof Error && err.name === 'AbortError') {
-        lastError = new Error(`Telegram API ${method} timed out after ${TIMEOUT_MS}ms`);
+        lastError = new Error(`Telegram API ${method} timed out after ${timeoutMs}ms`);
       } else {
         lastError = err instanceof Error ? err : new Error(String(err));
       }
@@ -115,7 +133,7 @@ export async function sendChatAction(
  */
 export async function getFileUrl(fileId: string): Promise<string | null> {
   try {
-    const result = await callApi<{ ok: boolean; result?: { file_path?: string } }>('getFile', {
+    const result = await callApi<TelegramApiResult<{ file_path?: string }>>('getFile', {
       file_id: fileId,
     });
 
@@ -138,7 +156,7 @@ export async function setWebhook(
   options?: { secretToken?: string; allowedUpdates?: string[] },
 ): Promise<boolean> {
   try {
-    const result = await callApi<{ ok: boolean; description?: string }>('setWebhook', {
+    const result = await callApi<TelegramApiResult<true>>('setWebhook', {
       url,
       secret_token: options?.secretToken,
       allowed_updates: options?.allowedUpdates ?? ['message', 'edited_message'],
@@ -163,10 +181,29 @@ export async function setWebhook(
  */
 export async function deleteWebhook(): Promise<boolean> {
   try {
-    const result = await callApi<{ ok: boolean }>('deleteWebhook', {});
+    const result = await callApi<TelegramApiResult<true>>('deleteWebhook', {});
     return result.ok;
   } catch (err) {
     logger.error({ err }, 'Failed to delete Telegram webhook');
     return false;
   }
+}
+
+export async function getUpdates(
+  offset?: number,
+  options?: { timeoutSeconds?: number; allowedUpdates?: string[] },
+): Promise<TelegramApiResult<TelegramUpdate[]>> {
+  const timeoutSeconds = options?.timeoutSeconds ?? 10;
+
+  return callApi<TelegramApiResult<TelegramUpdate[]>>(
+    'getUpdates',
+    {
+      offset,
+      timeout: timeoutSeconds,
+      allowed_updates: options?.allowedUpdates ?? ['message'],
+    },
+    {
+      timeoutMs: (timeoutSeconds + 5) * 1000,
+    },
+  );
 }
