@@ -10,6 +10,13 @@ export class SkillRepository extends BaseRepository {
             vettingResults: { orderBy: { createdAt: 'desc' }, take: 1 },
           },
         },
+        versions: {
+          orderBy: { createdAt: 'desc' },
+          take: 1,
+          include: {
+            vettingResults: { orderBy: { createdAt: 'desc' }, take: 1 },
+          },
+        },
       },
     });
   }
@@ -19,6 +26,13 @@ export class SkillRepository extends BaseRepository {
       orderBy: { displayName: 'asc' },
       include: {
         currentVersion: {
+          include: {
+            vettingResults: { orderBy: { createdAt: 'desc' }, take: 1 },
+          },
+        },
+        versions: {
+          orderBy: { createdAt: 'desc' },
+          take: 1,
           include: {
             vettingResults: { orderBy: { createdAt: 'desc' }, take: 1 },
           },

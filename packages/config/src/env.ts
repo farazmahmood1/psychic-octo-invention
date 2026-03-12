@@ -35,6 +35,8 @@ const envSchema = z.object({
 
   // Email (optional — degraded without SMTP)
   INBOUND_EMAIL_WEBHOOK_SECRET: z.string().min(16).optional(),
+  RESEND_API_KEY: z.string().min(1).optional(),
+  RESEND_WEBHOOK_SECRET: z.string().min(1).optional(),
   SMTP_HOST: z.string().min(1).optional(),
   SMTP_PORT: z.coerce.number().default(587),
   SMTP_USER: z.string().min(1).optional(),
@@ -110,7 +112,10 @@ export const integrationConfigured = {
   telegram: () => hasConfiguredValue(env.TELEGRAM_BOT_TOKEN),
   telegramWebhook: () => hasConfiguredValue(env.TELEGRAM_BOT_TOKEN) && hasConfiguredValue(env.TELEGRAM_WEBHOOK_SECRET),
   email: () => !!env.SMTP_HOST && !!env.SMTP_USER && !!env.SMTP_PASS && !!env.SMTP_FROM,
-  emailWebhook: () => hasConfiguredValue(env.INBOUND_EMAIL_WEBHOOK_SECRET),
+  emailWebhook: () => (
+    hasConfiguredValue(env.INBOUND_EMAIL_WEBHOOK_SECRET)
+    || (hasConfiguredValue(env.RESEND_API_KEY) && hasConfiguredValue(env.RESEND_WEBHOOK_SECRET))
+  ),
   ghl: () => hasConfiguredValue(env.GHL_API_TOKEN),
   googleSheets: () => !!env.GOOGLE_SERVICE_ACCOUNT_JSON && !!env.GOOGLE_SHEETS_BOOKKEEPING_SPREADSHEET_ID,
 } as const;

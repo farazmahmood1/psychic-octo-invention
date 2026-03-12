@@ -30,6 +30,7 @@ vi.mock('../../workers/email-processing.worker.js', () => ({
 import { emailWebhookRouter } from '../../routes/webhooks/email.js';
 import { emailThreadRepository } from '../../repositories/email-thread.repository.js';
 import { enqueueEmailProcessing } from '../../workers/email-processing.worker.js';
+import { resetInboundEmailIdCacheForTest } from '../../services/channels/email.inbound.js';
 import express from 'express';
 
 function createWebhookApp() {
@@ -44,6 +45,7 @@ describe('Email Webhook', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    resetInboundEmailIdCacheForTest();
     app = createWebhookApp();
   });
 

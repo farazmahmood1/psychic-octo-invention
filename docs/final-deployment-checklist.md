@@ -73,8 +73,10 @@ curl -X POST "https://api.telegram.org/bot<TOKEN>/setWebhook" \
 
 Email:
 - Point provider/webhook source to `POST /webhooks/email`
+- If using Resend receiving, use the API host for `POST /webhooks/email/resend`, not the static frontend domain
 - Send header `X-Email-Webhook-Secret: <INBOUND_EMAIL_WEBHOOK_SECRET>`
 - Verify SMTP account can send from `SMTP_FROM`
+- Verify the public API host returns JSON on `/health` before registering any provider webhooks
 
 GHL:
 - Validate `GHL_API_TOKEN`

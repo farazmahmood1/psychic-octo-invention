@@ -94,6 +94,29 @@ Health endpoints:
 - `GET /health/ready` (database + redis readiness)
 - `GET /api/v1/integrations/health` (integration visibility)
 
+Telegram memory verifier:
+
+```bash
+npm run demo:telegram-memory
+```
+
+Fast local fallback that skips Telegram delivery:
+
+```bash
+npm run demo:telegram-memory -- --internal
+```
+
+Optional real-delivery mode for a clean test chat:
+
+```bash
+npm run demo:telegram-memory -- --chat-id <telegram_chat_id> --user-id <telegram_user_id> --require-delivery
+```
+
+Notes:
+- Default mode uses synthetic ids, which gives deterministic memory verification but can log Telegram delivery failure because the chat is not real.
+- `--internal` keeps the LLM + orchestration + persistence path but skips webhook ingress and Telegram delivery.
+- Real chat mode should only be used with a clean test chat because it updates that user's persisted memory.
+
 ## 5) Webhook Setup
 
 Telegram webhook:

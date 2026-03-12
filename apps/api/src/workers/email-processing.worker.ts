@@ -3,6 +3,7 @@ import type { Prisma } from '@prisma/client';
 import type { EmailProcessingJobPayload, EmailProcessingJobResult } from '../jobs/email-processing.job.js';
 import { toEmailJobResult, toEmailJobError } from '../jobs/email-processing.job.js';
 import { normalizeInboundEmail } from '../integrations/email/normalizer.js';
+import { normalizeMailboxAddress, normalizeMailboxList } from '../integrations/email/address.js';
 import { executeEvent } from '../orchestration/index.js';
 import { deliverToEmail } from '../services/channels/index.js';
 import { emailThreadRepository } from '../repositories/email-thread.repository.js';
@@ -59,7 +60,8 @@ export async function processEmailJob(
     // 4. Deliver reply via SMTP
     let replySent = false;
     if (result.reply) {
-      const fromAddress = payload.from.toLowerCase();
+      const fromAddress = normalizeMailboxAddress(payload.from) ?? payload.from.trim().toLowerCase();
+      const replyToAddress = normalizeMailboxList(payload.to)[0];
       const subject = ensureReplySubject(payload.subject ?? '(no subject)');
       const references = buildReferencesHeader(payload.references, payload.messageId);
 
@@ -72,6 +74,7 @@ export async function processEmailJob(
         subject,
         payload.messageId,
         references,
+        replyToAddress,
       );
 
       replySent = deliveryResult.success;
@@ -251,9 +254,9 @@ async function persistEmailThread(
   payload: EmailProcessingJobPayload['payload'],
   internalMessageId: string,
 ): Promise<void> {
-  const fromAddress = payload.from.toLowerCase();
-  const toAddresses = (payload.to ?? []).map((a) => a.toLowerCase());
-  const ccAddresses = (payload.cc ?? []).map((a) => a.toLowerCase());
+  const fromAddress = normalizeMailboxAddress(payload.from) ?? payload.from.trim().toLowerCase();
+  const toAddresses = normalizeMailboxList(payload.to);
+  const ccAddresses = normalizeMailboxList(payload.cc);
   const subject = payload.subject ?? '(no subject)';
 
   const threadId = payload.references

@@ -36,6 +36,7 @@ Complete reference for deploying OpenClaw to Render.com (or any cloud provider).
 > - `APP_BASE_URL` = your Render API service's public URL
 > - `ADMIN_APP_URL` = your Render static site's public URL (used for CORS)
 > - `API_BASE_URL` = same as `APP_BASE_URL`
+> - Provider webhooks such as Resend inbound email must target `API_BASE_URL`, not the marketing/root site if that root domain serves static HTML
 
 ---
 

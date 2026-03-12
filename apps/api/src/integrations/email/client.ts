@@ -45,14 +45,13 @@ export async function sendEmail(options: OutboundEmailOptions): Promise<EmailSen
       const smtp = getTransporter();
 
       const info = await smtp.sendMail({
-        from: options.replyTo
-          ? `${env.SMTP_FROM} <${options.replyTo}>`
-          : env.SMTP_FROM,
+        from: env.SMTP_FROM,
         to: options.to.join(', '),
         cc: options.cc?.join(', '),
         subject: options.subject,
         text: options.textBody,
         html: options.htmlBody,
+        replyTo: options.replyTo,
         inReplyTo: options.inReplyTo,
         references: options.references,
         headers: {

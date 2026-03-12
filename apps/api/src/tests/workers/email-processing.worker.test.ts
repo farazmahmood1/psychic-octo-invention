@@ -60,6 +60,7 @@ vi.mock('../../integrations/email/client.js', () => ({
 }));
 
 import { normalizeInboundEmail } from '../../integrations/email/normalizer.js';
+import { deliverToEmail } from '../../services/channels/index.js';
 import { enqueueEmailProcessing, resumePendingEmailJobs } from '../../workers/email-processing.worker.js';
 
 describe('Email Processing Worker', () => {
@@ -163,6 +164,75 @@ describe('Email Processing Worker', () => {
 
     expect(claimForRunMock).toHaveBeenCalledWith('job-recover-1');
     expect(markCompletedMock).toHaveBeenCalledWith('job-recover-1', expect.any(Object));
+  });
+
+  it('passes the original inbound alias as reply-to when sending an email reply', async () => {
+    vi.mocked(normalizeInboundEmail).mockReturnValue({
+      channel: 'email',
+      externalUserId: 'client@example.com',
+      externalUserName: 'Jane Client',
+      externalThreadId: '<msg-001@example.com>',
+      text: 'Need help',
+      attachments: [],
+      timestamp: new Date().toISOString(),
+      metadata: {},
+    });
+
+    const { executeEvent } = await import('../../orchestration/index.js');
+    vi.mocked(executeEvent).mockResolvedValue({
+      reply: 'Here is the breakdown.',
+      memoryWrites: [],
+      usage: { promptTokens: 1, completionTokens: 1, totalTokens: 2, estimatedCostUsd: null },
+      routing: {
+        provider: 'openrouter',
+        model: 'google/gemini-2.5-flash',
+        tier: 'cheap',
+        reason: 'test',
+        escalatedFrom: null,
+        signals: {
+          messageLength: 10,
+          hasAttachments: false,
+          requiresVision: false,
+          requiresToolUse: false,
+          estimatedComplexity: 'low',
+          hasFollowUpNeed: false,
+        },
+      },
+      toolDispatches: [],
+      subAgentDispatches: [],
+      conversationId: 'conv-1',
+      messageId: 'msg-1',
+      warnings: [],
+    });
+
+    vi.mocked(deliverToEmail).mockResolvedValue({
+      success: true,
+      externalMessageId: 'provider-1',
+      error: null,
+    });
+
+    await enqueueEmailProcessing({
+      payload: createInboundEmailPayload({
+        from: 'Jane Client <client@example.com>',
+        to: ['resend@forrof.io'],
+      }),
+      idempotencyKey: 'email-job-reply-to',
+      receivedAt: new Date().toISOString(),
+    });
+
+    await new Promise((resolve) => setTimeout(resolve, 20));
+
+    expect(deliverToEmail).toHaveBeenCalledWith(
+      'conv-1',
+      'msg-1',
+      'Here is the breakdown.',
+      ['client@example.com'],
+      undefined,
+      'Re: Need help with my invoice',
+      '<msg-001@example.com>',
+      null,
+      'resend@forrof.io',
+    );
   });
 
   it('marks invalid persisted payload as failed during recovery', async () => {

@@ -1,4 +1,5 @@
 import express from 'express';
+import type { Request } from 'express';
 import helmet from 'helmet';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
@@ -77,7 +78,13 @@ export function createApp() {
   );
 
   app.use(cookieParser());
-  app.use(express.json({ limit: env.MAX_PAYLOAD_SIZE }));
+  app.use(express.json({
+    limit: env.MAX_PAYLOAD_SIZE,
+    verify: (req, _res, buf, encoding) => {
+      const request = req as Request & { rawBody?: string };
+      request.rawBody = buf.toString((encoding as BufferEncoding | undefined) ?? 'utf8');
+    },
+  }));
   app.use(express.urlencoded({ extended: false, limit: '1mb' }));
 
   // ── Request tracking ────────────────────────────────

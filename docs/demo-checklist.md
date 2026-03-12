@@ -20,6 +20,8 @@ Use this checklist before live handoff.
 - [ ] UI3 Skills: disable a skill and confirm tool call is blocked
 - [ ] SEC1: ingest malicious skill source and show blocked event in Security page
 - [ ] T3 Memory: state a fact, run unrelated messages, request recall
+  Evidence command: `npm run demo:telegram-memory`
+  Local fallback: `npm run demo:telegram-memory -- --internal`
 - [ ] T4 Routing: show simple prompt (cheap model) vs complex prompt (escalated model) evidence in chat metadata
 - [ ] G1 GHL: perform contact update command and show confirmation/log
 - [ ] B1 Bookkeeping: process receipt image, set category, append to Google Sheets

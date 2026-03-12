@@ -226,12 +226,22 @@ npx prisma migrate deploy --schema=prisma/schema.prisma
 
 1. Configure SMTP credentials (`SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM`)
 2. Set `INBOUND_EMAIL_WEBHOOK_SECRET`
-3. Configure email provider (SendGrid Inbound Parse, Mailgun) to forward to:
+3. If using Resend receiving, point the webhook to the API host, not the marketing site root. Example:
+   - Correct: `https://api.yourdomain.com/webhooks/email/resend`
+   - Incorrect: `https://yourdomain.com/webhooks/email/resend` when `yourdomain.com` serves a static site
+   - If the root domain already has another mailbox provider or marketing site setup, prefer a dedicated receiving subdomain such as `inbound.yourdomain.com`
+4. Configure email provider (SendGrid Inbound Parse, Mailgun) to forward to:
    ```
    POST https://<your-api-domain>/webhooks/email
    Header: X-Email-Webhook-Secret: <your-webhook-secret>
    ```
-4. Expected payload format: see `docs/api-spec.md` > Webhooks > Email
+5. Expected payload format: see `docs/api-spec.md` > Webhooks > Email
+
+For Resend specifically:
+```
+POST https://<your-api-domain>/webhooks/email/resend
+```
+The API domain must return JSON on `/health`. If `/health` returns your frontend HTML, the webhook host is wrong.
 
 ## GHL CRM Setup
 

@@ -125,4 +125,53 @@ describe('Memory Service - T3 persistence behavior', () => {
     expect(snippets.some((s) => s.subjectKey === 'name')).toBe(true);
     expect(snippets.some((s) => s.subjectKey === 'company')).toBe(true);
   });
+
+  it('extracts compound facts without bleeding text across summaries', async () => {
+    await extractAndStoreMemories(
+      createEvent('My name is Alice Johnson and my company is Blue Harbor LLC. I prefer short replies.'),
+      dummyResponse,
+      'conv-1',
+      'msg-compound',
+    );
+
+    expect(memoryStore).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          subjectKey: 'name',
+          summary: "User's name is Alice Johnson",
+        }),
+        expect.objectContaining({
+          subjectKey: 'company',
+          summary: 'User works at Blue Harbor LLC',
+        }),
+        expect.objectContaining({
+          subjectKey: 'preference:short_replies',
+          summary: 'User prefers: short replies',
+        }),
+      ]),
+    );
+  });
+
+  it('does not misclassify location statements as names', async () => {
+    await extractAndStoreMemories(
+      createEvent("I'm in Boston and I prefer email follow-ups."),
+      dummyResponse,
+      'conv-1',
+      'msg-location',
+    );
+
+    expect(memoryStore.some((m) => m.subjectKey === 'name')).toBe(false);
+    expect(memoryStore).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          subjectKey: 'location',
+          summary: 'User is in/from Boston',
+        }),
+        expect.objectContaining({
+          subjectKey: 'preference:email_follow_ups',
+          summary: 'User prefers: email follow-ups',
+        }),
+      ]),
+    );
+  });
 });

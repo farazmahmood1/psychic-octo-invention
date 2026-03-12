@@ -4,11 +4,17 @@ import { auditRepository } from '../../repositories/audit.repository.js';
 import { AppError } from '../../utils/app-error.js';
 import { HTTP_STATUS } from '@openclaw/shared';
 
+function resolveDisplayVersion(skill: Awaited<ReturnType<typeof skillRepository.findById>>) {
+  if (!skill) return null;
+  return skill.currentVersion ?? skill.versions[0] ?? null;
+}
+
 export async function listSkills(): Promise<SkillSummary[]> {
   const skills = await skillRepository.list();
 
   return skills.map((s) => {
-    const latestVetting = s.currentVersion?.vettingResults[0] ?? null;
+    const displayVersion = resolveDisplayVersion(s);
+    const latestVetting = displayVersion?.vettingResults[0] ?? null;
     return {
       id: s.id,
       slug: s.slug,
@@ -16,7 +22,7 @@ export async function listSkills(): Promise<SkillSummary[]> {
       description: s.description,
       sourceType: s.sourceType,
       enabled: s.enabled,
-      currentVersion: s.currentVersion?.version ?? null,
+      currentVersion: displayVersion?.version ?? null,
       latestVetting: latestVetting?.result ?? null,
     };
   });
@@ -33,9 +39,11 @@ export async function toggleSkill(
     throw new AppError(HTTP_STATUS.NOT_FOUND, 'NOT_FOUND', 'Skill not found');
   }
 
+  const displayVersion = resolveDisplayVersion(skill);
+
   // Vetting enforcement: cannot enable a skill without passed vetting
   if (enabled) {
-    const latestVetting = skill.currentVersion?.vettingResults[0] ?? null;
+    const latestVetting = displayVersion?.vettingResults[0] ?? null;
     if (!latestVetting) {
       throw new AppError(
         HTTP_STATUS.UNPROCESSABLE_ENTITY,
@@ -71,7 +79,7 @@ export async function toggleSkill(
     metadata: { skillSlug: skill.slug } as any,
   });
 
-  const latestVetting = skill.currentVersion?.vettingResults[0] ?? null;
+  const latestVetting = displayVersion?.vettingResults[0] ?? null;
   return {
     id: updated.id,
     slug: updated.slug,
@@ -79,7 +87,7 @@ export async function toggleSkill(
     description: updated.description,
     sourceType: updated.sourceType,
     enabled: updated.enabled,
-    currentVersion: skill.currentVersion?.version ?? null,
+    currentVersion: displayVersion?.version ?? null,
     latestVetting: latestVetting?.result ?? null,
   };
 }

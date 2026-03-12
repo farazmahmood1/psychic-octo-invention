@@ -11,6 +11,28 @@ import { memoryRepository } from '../../repositories/memory.repository.js';
 
 const MAX_RETRIEVAL_SNIPPETS = 15;
 const MIN_IMPORTANCE_THRESHOLD = 0.3;
+const FACT_BOUNDARY =
+  String.raw`(?=$|[.!?;]|\s+(?:and|but)\s+(?:my|i|we|the|please|thanks)\b|,\s*(?:my|i|we)\b)`;
+const NAME_STOP_WORDS = new Set([
+  'and',
+  'at',
+  'based',
+  'because',
+  'but',
+  'for',
+  'founder',
+  'from',
+  'in',
+  'located',
+  'need',
+  'owner',
+  'please',
+  'prefer',
+  'thanks',
+  'the',
+  'want',
+  'with',
+]);
 
 /**
  * Retrieve relevant memory snippets for an inbound event.
@@ -113,55 +135,62 @@ function extractFacts(
   messageId: string,
 ): MemoryFact[] {
   const facts: MemoryFact[] = [];
-  const text = event.text;
+  const text = event.text.replace(/\s+/g, ' ').trim();
   const userId = event.externalUserId;
 
-  // Pattern: Personal identification ("my name is X", "I am X")
-  const nameMatch = text.match(/\b(?:my name is|i(?:'m| am)) (\w[\w\s]{1,30})/i);
-  if (nameMatch?.[1]) {
+  for (const name of extractMatches(
+    text,
+    new RegExp(String.raw`\b(?:my name is|i(?:'m| am))\s+(.+?)${FACT_BOUNDARY}`, 'gi'),
+    sanitizeName,
+  )) {
     facts.push({
       namespace: `user:${userId}`,
       subjectKey: 'name',
-      value: { name: nameMatch[1].trim() },
-      summary: `User's name is ${nameMatch[1].trim()}`,
+      value: { name },
+      summary: `User's name is ${name}`,
       importance: 0.9,
       sourceConversationId: conversationId,
       sourceMessageId: messageId,
     });
   }
 
-  // Pattern: Location/city ("I live in X", "I'm from X", "I'm in X")
-  const locationMatch = text.match(/\b(?:i (?:live|am|'m) (?:in|from)) (\w[\w\s]{1,40})/i);
-  if (locationMatch?.[1]) {
+  for (const location of extractMatches(
+    text,
+    new RegExp(String.raw`\b(?:i live in|i(?:'m| am) from|i(?:'m| am) in)\s+(.+?)${FACT_BOUNDARY}`, 'gi'),
+    sanitizeLocation,
+  )) {
     facts.push({
       namespace: `user:${userId}`,
       subjectKey: 'location',
-      value: { location: locationMatch[1].trim() },
-      summary: `User is in/from ${locationMatch[1].trim()}`,
+      value: { location },
+      summary: `User is in/from ${location}`,
       importance: 0.7,
       sourceConversationId: conversationId,
       sourceMessageId: messageId,
     });
   }
 
-  // Pattern: Business/company mentions ("my company is X", "I work at X")
-  const companyMatch = text.match(/\b(?:my (?:company|business) is|i work (?:at|for)) (\w[\w\s&.]{1,50})/i);
-  if (companyMatch?.[1]) {
+  for (const company of extractMatches(
+    text,
+    new RegExp(String.raw`\b(?:my (?:company|business) is|i work (?:at|for))\s+(.+?)${FACT_BOUNDARY}`, 'gi'),
+    sanitizeEntity,
+  )) {
     facts.push({
       namespace: `user:${userId}`,
       subjectKey: 'company',
-      value: { company: companyMatch[1].trim() },
-      summary: `User works at ${companyMatch[1].trim()}`,
+      value: { company },
+      summary: `User works at ${company}`,
       importance: 0.8,
       sourceConversationId: conversationId,
       sourceMessageId: messageId,
     });
   }
 
-  // Pattern: Preferences ("I prefer X", "I like X", "I want X")
-  const preferenceMatch = text.match(/\bi (?:prefer|like|want|need) (.{5,80}?)(?:\.|!|\?|$)/i);
-  if (preferenceMatch?.[1]) {
-    const pref = preferenceMatch[1].trim();
+  for (const pref of extractMatches(
+    text,
+    new RegExp(String.raw`\bi (?:prefer|like|want|need)\s+(.+?)${FACT_BOUNDARY}`, 'gi'),
+    sanitizePreference,
+  )) {
     facts.push({
       namespace: `user:${userId}`,
       subjectKey: `preference:${normalizeKey(pref.slice(0, 40))}`,
@@ -200,7 +229,7 @@ function extractFacts(
     });
   }
 
-  return facts;
+  return dedupeFacts(facts);
 }
 
 function buildNamespaces(externalUserId: string, conversationId: string): string[] {
@@ -216,4 +245,98 @@ function normalizeKey(str: string): string {
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, '_')
     .replace(/^_|_$/g, '');
+}
+
+function extractMatches(
+  text: string,
+  pattern: RegExp,
+  sanitizer: (value: string) => string | undefined,
+): string[] {
+  const values: string[] = [];
+
+  for (const match of text.matchAll(pattern)) {
+    const cleaned = sanitizer(match[1] ?? '');
+    if (cleaned) {
+      values.push(cleaned);
+    }
+  }
+
+  return values;
+}
+
+function sanitizeName(value: string): string | undefined {
+  const tokens = cleanCapturedValue(value)
+    .split(/\s+/)
+    .map((token) => token.replace(/^[^a-z]+|[^a-z'.-]+$/gi, ''))
+    .filter(Boolean);
+
+  if (tokens.length === 0) {
+    return undefined;
+  }
+
+  const nameTokens: string[] = [];
+  for (const token of tokens) {
+    const lower = token.toLowerCase();
+    if (NAME_STOP_WORDS.has(lower)) {
+      break;
+    }
+
+    if (!/^[a-z][a-z'.-]*$/i.test(token)) {
+      break;
+    }
+
+    nameTokens.push(token);
+    if (nameTokens.length === 4) {
+      break;
+    }
+  }
+
+  if (nameTokens.length === 0) {
+    return undefined;
+  }
+
+  const first = nameTokens[0]?.toLowerCase();
+  if (!first || NAME_STOP_WORDS.has(first)) {
+    return undefined;
+  }
+
+  return nameTokens.join(' ');
+}
+
+function sanitizeLocation(value: string): string | undefined {
+  return sanitizeEntity(
+    cleanCapturedValue(value).replace(/\s+(?:with|because|since|while)\b.*$/i, ''),
+  );
+}
+
+function sanitizeEntity(value: string): string | undefined {
+  const cleaned = cleanCapturedValue(value).replace(/\s+(?:because|since|while)\b.*$/i, '');
+  return cleaned.length >= 2 ? cleaned : undefined;
+}
+
+function sanitizePreference(value: string): string | undefined {
+  const cleaned = cleanCapturedValue(value);
+  return cleaned.length >= 3 ? cleaned : undefined;
+}
+
+function cleanCapturedValue(value: string): string {
+  return value
+    .replace(/^[\s,;:.-]+/, '')
+    .replace(/[\s,;:.-]+$/, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function dedupeFacts(facts: MemoryFact[]): MemoryFact[] {
+  const uniqueFacts = new Map<string, MemoryFact>();
+
+  for (const fact of facts) {
+    const key = `${fact.namespace}:${fact.subjectKey}`;
+    const existing = uniqueFacts.get(key);
+    if (!existing || fact.importance >= existing.importance) {
+      uniqueFacts.set(key, fact);
+    }
+  }
+
+  return [...uniqueFacts.values()];
 }

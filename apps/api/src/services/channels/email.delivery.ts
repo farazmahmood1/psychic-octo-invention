@@ -1,8 +1,9 @@
-import { logger } from '@openclaw/config';
+import { env, logger } from '@openclaw/config';
 import type { ChannelDeliveryResult } from '@openclaw/shared';
 import type { Prisma } from '@prisma/client';
 import { prisma } from '../../db/client.js';
 import { sendEmail, buildReferencesHeader, ensureReplySubject } from '../../integrations/email/index.js';
+import { normalizeMailboxAddress, normalizeMailboxList } from '../../integrations/email/address.js';
 import { emailThreadRepository } from '../../repositories/email-thread.repository.js';
 
 /**
@@ -24,6 +25,7 @@ export async function deliverToEmail(
   emailSubject?: string,
   emailInReplyTo?: string,
   emailReferences?: string,
+  emailReplyTo?: string,
 ): Promise<ChannelDeliveryResult> {
   // Resolve email thread to get threading context
   const emailThread = await emailThreadRepository.findByConversationId(conversationId);
@@ -35,8 +37,21 @@ export async function deliverToEmail(
   }
 
   // Resolve delivery parameters from thread or explicit values
-  const to = emailTo ?? [emailThread!.fromAddress];
+  const to = normalizeMailboxList(emailTo);
+  const resolvedTo = to.length > 0
+    ? to
+    : [normalizeMailboxAddress(emailThread!.fromAddress)].filter((value): value is string => Boolean(value));
+  const resolvedCc = normalizeMailboxList(emailCc);
   const subject = emailSubject ?? ensureReplySubject(emailThread!.subject);
+  const threadReplyAddresses = normalizeMailboxList(asStringArray(emailThread?.toAddresses));
+  const replyTo = normalizeMailboxAddress(emailReplyTo) ?? threadReplyAddresses[0];
+  const senderAddress = normalizeMailboxAddress(env.SMTP_FROM) ?? env.SMTP_FROM ?? 'unknown-sender';
+
+  if (resolvedTo.length === 0) {
+    logger.error({ conversationId }, 'No valid email recipients found for delivery');
+    await updateMessageStatus(messageId, 'failed');
+    return { success: false, externalMessageId: null, error: 'No valid recipients found' };
+  }
 
   // Build threading headers from the latest message in the thread
   let inReplyTo = emailInReplyTo;
@@ -55,10 +70,11 @@ export async function deliverToEmail(
 
   try {
     const result = await sendEmail({
-      to,
-      cc: emailCc,
+      to: resolvedTo,
+      cc: resolvedCc.length > 0 ? resolvedCc : undefined,
       subject,
       textBody: content,
+      replyTo,
       inReplyTo,
       references,
     });
@@ -76,11 +92,16 @@ export async function deliverToEmail(
           messageId,
           providerEmailId: result.providerMessageId ?? undefined,
           inReplyTo,
-          fromAddress: to[0]!, // We're sending TO the original sender
-          toAddresses: to,
-          ccAddresses: emailCc,
+          fromAddress: senderAddress,
+          toAddresses: resolvedTo,
+          ccAddresses: resolvedCc.length > 0 ? resolvedCc : undefined,
           subject,
           bodyText: content,
+          headers: {
+            ...(inReplyTo ? { 'In-Reply-To': inReplyTo } : {}),
+            ...(references ? { References: references } : {}),
+            ...(replyTo ? { 'Reply-To': replyTo } : {}),
+          } as Prisma.InputJsonValue,
         }).catch((err) => {
           logger.warn({ err, conversationId }, 'Failed to persist outbound email message record');
         });
@@ -91,7 +112,7 @@ export async function deliverToEmail(
           subject,
           threadId: emailThread.threadId ?? undefined,
           fromAddress: emailThread.fromAddress,
-          toAddresses: to,
+          toAddresses: threadReplyAddresses,
           lastMessageAt: new Date(),
         }).catch((err) => {
           logger.warn({ err, conversationId }, 'Failed to update email thread lastMessageAt');
@@ -145,4 +166,10 @@ async function updateMessageStatus(
   } catch (err) {
     logger.warn({ err, messageId, status }, 'Failed to update email message delivery status');
   }
+}
+
+function asStringArray(value: unknown): string[] {
+  return Array.isArray(value)
+    ? value.filter((item): item is string => typeof item === 'string')
+    : [];
 }

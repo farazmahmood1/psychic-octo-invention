@@ -25,6 +25,7 @@
     "db:migrate:prod": "npx prisma migrate deploy --schema=prisma/schema.prisma",
     "db:studio": "npx prisma studio --schema=prisma/schema.prisma",
     "seed:admin": "npx tsx scripts/seed-admin.ts",
+    "demo:telegram-memory": "npx tsx scripts/verify-telegram-memory.ts",
     "start:api": "node apps/api/dist/server.js",
     "start:worker": "node apps/api/dist/worker.js",
     "predeploy": "bash scripts/pre-deploy.sh",

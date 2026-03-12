@@ -1,8 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { HTTP_STATUS } from '@openclaw/shared';
 
-const { findByIdMock, setEnabledMock, auditCreateMock } = vi.hoisted(() => ({
+const { findByIdMock, listMock, setEnabledMock, auditCreateMock } = vi.hoisted(() => ({
   findByIdMock: vi.fn(),
+  listMock: vi.fn(),
   setEnabledMock: vi.fn(),
   auditCreateMock: vi.fn(),
 }));
@@ -10,6 +11,7 @@ const { findByIdMock, setEnabledMock, auditCreateMock } = vi.hoisted(() => ({
 vi.mock('../../repositories/skill.repository.js', () => ({
   skillRepository: {
     findById: findByIdMock,
+    list: listMock,
     setEnabled: setEnabledMock,
   },
 }));
@@ -20,10 +22,25 @@ vi.mock('../../repositories/audit.repository.js', () => ({
   },
 }));
 
-import { toggleSkill } from '../../services/skills/skill.service.js';
+import { listSkills, toggleSkill } from '../../services/skills/skill.service.js';
 import { AppError } from '../../utils/app-error.js';
 
-function createSkill(vettingResult: 'passed' | 'failed' | 'warning' | 'pending' | null = 'passed') {
+function createSkill(
+  vettingResult: 'passed' | 'failed' | 'warning' | 'pending' | null = 'passed',
+  options: { useCurrentVersion?: boolean } = {},
+) {
+  const latestVersion = vettingResult === null
+    ? null
+    : {
+      version: '1.0.0',
+      vettingResults: [
+        {
+          result: vettingResult,
+          createdAt: new Date(),
+        },
+      ],
+    };
+
   return {
     id: 'skill-1',
     slug: 'sample-skill',
@@ -31,19 +48,44 @@ function createSkill(vettingResult: 'passed' | 'failed' | 'warning' | 'pending' 
     description: 'Sample description',
     sourceType: 'uploaded',
     enabled: false,
-    currentVersion: vettingResult === null
-      ? null
-      : {
-        version: '1.0.0',
-        vettingResults: [
-          {
-            result: vettingResult,
-            createdAt: new Date(),
-          },
-        ],
-      },
+    currentVersion: options.useCurrentVersion === false ? null : latestVersion,
+    versions: latestVersion && options.useCurrentVersion === false ? [latestVersion] : [],
   };
 }
+
+describe('Skill Service - listSkills', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('uses current version vetting when available', async () => {
+    listMock.mockResolvedValueOnce([createSkill('passed')]);
+
+    const result = await listSkills();
+
+    expect(result).toEqual([
+      expect.objectContaining({
+        slug: 'sample-skill',
+        currentVersion: '1.0.0',
+        latestVetting: 'passed',
+      }),
+    ]);
+  });
+
+  it('falls back to latest uploaded version when currentVersion is missing', async () => {
+    listMock.mockResolvedValueOnce([createSkill('failed', { useCurrentVersion: false })]);
+
+    const result = await listSkills();
+
+    expect(result).toEqual([
+      expect.objectContaining({
+        slug: 'sample-skill',
+        currentVersion: '1.0.0',
+        latestVetting: 'failed',
+      }),
+    ]);
+  });
+});
 
 describe('Skill Service - toggleSkill', () => {
   beforeEach(() => {
@@ -92,6 +134,15 @@ describe('Skill Service - toggleSkill', () => {
     await expect(toggleSkill('skill-1', true, 'admin-1', '127.0.0.1')).rejects.toMatchObject({
       statusCode: HTTP_STATUS.UNPROCESSABLE_ENTITY,
       code: 'VETTING_PENDING',
+    } satisfies Partial<AppError>);
+  });
+
+  it('uses the latest uploaded version when the current version pointer is missing', async () => {
+    findByIdMock.mockResolvedValueOnce(createSkill('failed', { useCurrentVersion: false }));
+
+    await expect(toggleSkill('skill-1', true, 'admin-1', '127.0.0.1')).rejects.toMatchObject({
+      statusCode: HTTP_STATUS.UNPROCESSABLE_ENTITY,
+      code: 'VETTING_FAILED',
     } satisfies Partial<AppError>);
   });
 

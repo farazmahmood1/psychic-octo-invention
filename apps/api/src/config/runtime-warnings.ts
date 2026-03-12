@@ -44,7 +44,9 @@ export function logRuntimeWarnings(processType: ProcessType): void {
     logger.warn('SMTP credentials are incomplete. Outbound email replies are disabled.');
   }
   if (!summary.emailWebhook) {
-    logger.warn('INBOUND_EMAIL_WEBHOOK_SECRET is missing or placeholder. Inbound email webhook is disabled.');
+    logger.warn(
+      'Inbound email webhook is disabled. Configure INBOUND_EMAIL_WEBHOOK_SECRET for generic providers or RESEND_API_KEY plus RESEND_WEBHOOK_SECRET for Resend.',
+    );
   }
   if (!summary.ghl) {
     logger.warn('GHL_API_TOKEN is missing or placeholder. GHL CRM sub-agent calls will fail.');

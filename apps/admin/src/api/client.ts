@@ -8,7 +8,8 @@ interface RequestOptions {
 }
 
 interface ApiError {
-  error: { code: string; message: string; details?: Record<string, unknown> };
+  error?: { code: string; message: string; details?: Record<string, unknown> };
+  data?: unknown;
 }
 
 class ApiClientError extends Error {
@@ -16,6 +17,7 @@ class ApiClientError extends Error {
     public status: number,
     public code: string,
     message: string,
+    public data?: unknown,
   ) {
     super(message);
     this.name = 'ApiClientError';
@@ -53,7 +55,12 @@ async function request<T>(endpoint: string, options: RequestOptions = {}): Promi
     const err = (await res.json().catch(() => ({
       error: { code: 'UNKNOWN', message: 'Request failed' },
     }))) as ApiError;
-    throw new ApiClientError(res.status, err.error.code, err.error.message);
+    throw new ApiClientError(
+      res.status,
+      err.error?.code ?? 'REQUEST_FAILED',
+      err.error?.message ?? 'Request failed',
+      err.data,
+    );
   }
 
   return res.json() as Promise<T>;
