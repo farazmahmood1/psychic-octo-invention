@@ -144,9 +144,13 @@ export const persistMessages = {
 export async function loadRecentMessages(
   conversationId: string,
   limit = 20,
+  excludeMessageId?: string,
 ): Promise<Array<{ role: 'user' | 'assistant'; content: string }>> {
   const messages = await prisma.message.findMany({
-    where: { conversationId },
+    where: {
+      conversationId,
+      ...(excludeMessageId ? { id: { not: excludeMessageId } } : {}),
+    },
     orderBy: { createdAt: 'desc' },
     take: limit,
     select: { direction: true, content: true },

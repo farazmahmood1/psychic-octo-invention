@@ -54,10 +54,6 @@ export async function sendEmail(options: OutboundEmailOptions): Promise<EmailSen
         replyTo: options.replyTo,
         inReplyTo: options.inReplyTo,
         references: options.references,
-        headers: {
-          ...(options.inReplyTo ? { 'In-Reply-To': options.inReplyTo } : {}),
-          ...(options.references ? { References: options.references } : {}),
-        },
       });
 
       const providerMessageId = info.messageId ?? null;

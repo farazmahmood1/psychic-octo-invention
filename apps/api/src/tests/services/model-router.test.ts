@@ -124,14 +124,14 @@ describe('Model Router', () => {
   });
 
   describe('Escalation', () => {
-    it('escalates from cheap to strong', async () => {
+    it('escalates from cheap to standard (not strong) to save costs', async () => {
       const event = createSimpleInboundEvent();
       const initial = createMockRoutingDecision('cheap');
 
       const escalated = await escalateModel(initial, event, []);
 
       expect(escalated).not.toBeNull();
-      expect(escalated!.tier).toBe('strong');
+      expect(escalated!.tier).toBe('standard');
       expect(escalated!.escalatedFrom).toBe('google/gemini-2.5-flash');
     });
 

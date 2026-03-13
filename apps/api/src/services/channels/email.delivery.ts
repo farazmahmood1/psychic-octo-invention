@@ -40,9 +40,11 @@ export async function deliverToEmail(
   const to = normalizeMailboxList(emailTo);
   const resolvedTo = to.length > 0
     ? to
-    : [normalizeMailboxAddress(emailThread!.fromAddress)].filter((value): value is string => Boolean(value));
+    : emailThread
+      ? [normalizeMailboxAddress(emailThread.fromAddress)].filter((value): value is string => Boolean(value))
+      : [];
   const resolvedCc = normalizeMailboxList(emailCc);
-  const subject = emailSubject ?? ensureReplySubject(emailThread!.subject);
+  const subject = emailSubject ?? (emailThread ? ensureReplySubject(emailThread.subject) : 'New Message');
   const threadReplyAddresses = normalizeMailboxList(asStringArray(emailThread?.toAddresses));
   const replyTo = normalizeMailboxAddress(emailReplyTo) ?? threadReplyAddresses[0];
   const senderAddress = normalizeMailboxAddress(env.SMTP_FROM) ?? env.SMTP_FROM ?? 'unknown-sender';

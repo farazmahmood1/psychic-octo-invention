@@ -382,6 +382,14 @@ async function handleApproveSend(
     };
   }
 
+  // Update message status to 'sent'
+  await prisma.message.update({
+    where: { id: outboundMessage.id },
+    data: { status: 'sent' },
+  }).catch((err) => {
+    logger.warn({ err, messageId: outboundMessage.id }, 'Failed to set follow-up message status to sent');
+  });
+
   const sentRecord = await followUpRecommendationRepository.updateStatus(record.id, 'sent');
 
   logger.info(

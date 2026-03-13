@@ -210,8 +210,12 @@ function detectToolUseNeed(
 // ── Tier Classification ──────────────────────────────────────
 
 function classifyTier(signals: RoutingSignals, escalatedFrom: string | null): ModelTier {
-  // If escalating, always go to strong
+  // If escalating, move up one tier: cheap→standard, standard→strong
   if (escalatedFrom !== null) {
+    // Determine original tier from the model that failed
+    if (escalatedFrom === DEFAULT_MODELS.cheap || escalatedFrom.includes('gemini')) {
+      return 'standard';
+    }
     return 'strong';
   }
 

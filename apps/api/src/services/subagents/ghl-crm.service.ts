@@ -3,6 +3,7 @@ import type {
   GhlSubAgentInput,
   GhlSubAgentOutput,
   GhlContact,
+  GhlActionType,
   SubAgentDispatch,
 } from '@openclaw/shared';
 // GHL_CRM_TOOL_NAME used externally; not needed in this service file
@@ -92,7 +93,7 @@ async function handleSearchContact(input: GhlSubAgentInput): Promise<GhlSubAgent
     const result = await searchContacts(query);
 
     await ghlActionLogRepository.create({
-      actionType: 'update_contact', // closest enum for search
+      actionType: 'search_contact',
       requestPayload: { action: 'search', query },
       responsePayload: { total: result.total, contactIds: result.contacts.map((c) => c.id) },
       success: true,
@@ -157,7 +158,7 @@ async function handleGetContact(input: GhlSubAgentInput): Promise<GhlSubAgentOut
     const latencyMs = contact._latencyMs;
 
     await ghlActionLogRepository.create({
-      actionType: 'update_contact',
+      actionType: 'get_contact',
       contactId,
       requestPayload: { action: 'get', contactId },
       responsePayload: { contactId: contact.id },
@@ -353,7 +354,7 @@ async function handleGhlError(
   logger.error({ err: error, action }, 'GHL sub-agent operation failed');
 
   await ghlActionLogRepository.create({
-    actionType: 'update_contact',
+    actionType: action as GhlActionType,
     contactId: request['contactId'] as string | undefined,
     requestPayload: request as any,
     statusCode: isApiError ? (err as GhlApiError).statusCode : undefined,

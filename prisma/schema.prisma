@@ -90,6 +90,8 @@ enum LedgerExportStatus {
 }
 
 enum GhlActionType {
+  search_contact
+  get_contact
   create_contact
   update_contact
   create_opportunity

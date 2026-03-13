@@ -198,10 +198,11 @@ async function handleProcessReceipt(
   }
 
   // Check completeness
-  const completeness = checkExtractionCompleteness(extractedData, category);
-  if (completeness.complete) {
+  const resolvedCategory = category ?? extractedData.suggestedCategory ?? null;
+  const completeness = checkExtractionCompleteness(extractedData, resolvedCategory);
+  if (completeness.complete && resolvedCategory) {
     // Everything present — append to sheet immediately
-    return await finalizeAndAppend(record.id, extractedData, category!, context);
+    return await finalizeAndAppend(record.id, extractedData, resolvedCategory, context);
   }
 
   // Need clarification (most commonly: category)

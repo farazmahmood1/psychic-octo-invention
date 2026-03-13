@@ -26,6 +26,8 @@ export type ReceiptStatus = 'pending' | 'extracted' | 'exported' | 'failed';
 export type LedgerExportStatus = 'pending' | 'exported' | 'failed';
 
 export type GhlActionType =
+  | 'search_contact'
+  | 'get_contact'
   | 'create_contact'
   | 'update_contact'
   | 'create_opportunity'

@@ -1,4 +1,4 @@
-import { createHash } from 'node:crypto';
+import { createHash, timingSafeEqual } from 'node:crypto';
 
 /**
  * Compute a SHA-256 hash of skill source code.
@@ -10,7 +10,10 @@ export function computeCodeHash(source: string): string {
 
 /**
  * Verify that a source's hash matches an expected hash.
+ * Uses timing-safe comparison to prevent side-channel attacks.
  */
 export function verifyCodeHash(source: string, expectedHash: string): boolean {
-  return computeCodeHash(source) === expectedHash;
+  const actual = computeCodeHash(source);
+  if (actual.length !== expectedHash.length) return false;
+  return timingSafeEqual(Buffer.from(actual), Buffer.from(expectedHash));
 }

@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import type { Request, Response } from 'express';
+import { timingSafeEqual } from 'node:crypto';
 import { env, logger } from '@openclaw/config';
 import { HTTP_STATUS } from '@openclaw/shared';
 import type { TelegramUpdate } from '@openclaw/shared';
@@ -21,7 +22,8 @@ async function handleTelegramWebhook(req: Request, res: Response): Promise<void>
   }
 
   const secretHeader = req.get('x-telegram-bot-api-secret-token');
-  if (!secretHeader || secretHeader !== expectedSecret) {
+  if (!secretHeader || secretHeader.length !== expectedSecret.length
+    || !timingSafeEqual(Buffer.from(secretHeader), Buffer.from(expectedSecret))) {
     logger.warn({ ip: req.ip }, 'Telegram webhook: invalid secret token');
     res.status(HTTP_STATUS.UNAUTHORIZED).json({ error: 'Invalid webhook secret' });
     return;

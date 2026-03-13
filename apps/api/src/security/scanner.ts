@@ -59,7 +59,7 @@ export const SCAN_RULES: ScanRule[] = [
     id: 'SEC-011',
     severity: 'critical',
     description: 'Shell execution via exec/execSync',
-    pattern: /\bexecSync?\s*\(/g,
+    pattern: /(?<!\.\s*)\bexecSync?\s*\(/g,
     category: 'shell_exec',
   },
   {
@@ -126,7 +126,7 @@ export const SCAN_RULES: ScanRule[] = [
     id: 'SEC-033',
     severity: 'critical',
     description: 'Python exec() built-in',
-    pattern: /\bexec\s*\(\s*['"]/g,
+    pattern: /(?<!\.\s*)\bexec\s*\(/g,
     category: 'dynamic_code',
   },
   {
@@ -262,11 +262,11 @@ export function scanSource(source: string, rules?: ScanRule[]): ScanResult {
   const lines = source.split('\n');
 
   for (const rule of activeRules) {
-    // Reset regex state for global patterns
-    rule.pattern.lastIndex = 0;
+    // Create a fresh regex to avoid shared mutable state across concurrent scans
+    const pattern = new RegExp(rule.pattern.source, rule.pattern.flags);
 
     let match: RegExpExecArray | null;
-    while ((match = rule.pattern.exec(source)) !== null) {
+    while ((match = pattern.exec(source)) !== null) {
       const beforeMatch = source.slice(0, match.index);
       const lineNumber = beforeMatch.split('\n').length;
       const lineContent = lines[lineNumber - 1] ?? '';
@@ -280,9 +280,6 @@ export function scanSource(source: string, rules?: ScanRule[]): ScanResult {
         snippet: lineContent.trim().slice(0, 200),
       });
     }
-
-    // Reset after use
-    rule.pattern.lastIndex = 0;
   }
 
   // Sort: critical > high > medium > low

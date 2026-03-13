@@ -41,8 +41,8 @@ export async function executeEvent(event: InboundEvent): Promise<ExecutionResult
   // 5. Route to model
   let routing = await routeModel(event, tools, null, routingSettings);
 
-  // 6. Compose prompt
-  const recentMessages = await loadRecentMessages(conversationId);
+  // 6. Compose prompt (exclude the just-persisted inbound message to avoid duplication)
+  const recentMessages = await loadRecentMessages(conversationId, 20, inboundMessageId);
   const promptContext = composePrompt({
     event,
     memories,
@@ -189,7 +189,7 @@ export async function executeEvent(event: InboundEvent): Promise<ExecutionResult
   if (allToolResults.length > 0) {
     const followUpMessages = [
       ...messages,
-      { role: 'assistant' as const, content: response.content || '' },
+      { role: 'assistant' as const, content: response.content || '', toolCalls: response.toolCalls },
       ...allToolResults.map((tr) => ({
         role: 'tool' as const,
         content: tr.result,
@@ -280,7 +280,7 @@ export async function executeEvent(event: InboundEvent): Promise<ExecutionResult
       event,
       response,
       conversationId,
-      replyMessageId,
+      inboundMessageId,
     );
   } catch (err) {
     warnings.push('Memory extraction failed');
