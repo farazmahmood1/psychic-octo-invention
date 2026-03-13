@@ -63,6 +63,7 @@ resendEmailWebhookRouter.post('/', async (req: Request, res: Response) => {
     res.status(result.statusCode).json(result.body);
   } catch (err) {
     logger.error({ err }, 'Resend email webhook processing error');
-    res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ error: 'Email webhook processing failed' });
+    // Return 200 to prevent Resend from retrying and creating a retry storm
+    res.status(HTTP_STATUS.OK).json({ ok: true, error: 'Email webhook processing failed' });
   }
 });
