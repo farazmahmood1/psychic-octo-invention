@@ -1,3 +1,5 @@
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import express from 'express';
 import type { Request } from 'express';
 import helmet from 'helmet';
@@ -69,7 +71,7 @@ export function createApp() {
 
   app.use(
     cors({
-      origin: env.ADMIN_APP_URL,
+      origin: [env.ADMIN_APP_URL, env.APP_BASE_URL].filter(Boolean),
       credentials: true,
       methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
       allowedHeaders: ['Content-Type', 'Authorization', 'x-csrf-token', 'x-request-id'],
@@ -118,6 +120,20 @@ export function createApp() {
   app.use(`${API_PREFIX}/memory`, memoryRouter);
   app.use(`${API_PREFIX}/bookkeeping`, bookkeepingRouter);
   app.use(`${API_PREFIX}/security`, securityRouter);
+
+  // ── Serve admin frontend (single-service deployment) ──
+  const __dirname = path.dirname(fileURLToPath(import.meta.url));
+  const adminDist = path.resolve(__dirname, '../../admin/dist');
+  app.use(express.static(adminDist, { index: 'index.html' }));
+  // SPA fallback: serve index.html for non-API routes
+  app.use((req, res, next) => {
+    if (req.path.startsWith('/api/') || req.path.startsWith('/webhooks') || req.path === '/health') {
+      return next();
+    }
+    res.sendFile(path.join(adminDist, 'index.html'), (err) => {
+      if (err) next();
+    });
+  });
 
   // ── Error handling ──────────────────────────────────
   app.use(notFoundHandler);
