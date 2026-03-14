@@ -12,6 +12,8 @@ import { acceptInboundEmailPayload } from '../../services/channels/email.inbound
 export const resendEmailWebhookRouter = Router();
 
 resendEmailWebhookRouter.post('/', async (req: Request, res: Response) => {
+  logger.info('Resend email webhook: received POST request');
+
   const resendApiKey = env.RESEND_API_KEY;
   const resendWebhookSecret = env.RESEND_WEBHOOK_SECRET;
   if (!resendApiKey || !resendWebhookSecret) {
@@ -37,6 +39,8 @@ resendEmailWebhookRouter.post('/', async (req: Request, res: Response) => {
     return;
   }
 
+  logger.info({ svixId }, 'Resend email webhook: verifying Svix signature');
+
   let event;
   try {
     event = verifyResendWebhook(rawBody, {
@@ -52,13 +56,29 @@ resendEmailWebhookRouter.post('/', async (req: Request, res: Response) => {
 
   try {
     if (!event) {
+      logger.info('Resend email webhook: event filtered out (not email.received)');
       res.status(HTTP_STATUS.OK).json({ ok: true });
       return;
     }
 
+    logger.info(
+      { eventType: event.type, emailId: event.data.email_id },
+      'Resend email webhook: verified event, fetching email details',
+    );
+
     const resendEmail = await getResendReceivingEmail(event.data.email_id);
+    logger.info(
+      { from: resendEmail.from, to: resendEmail.to, subject: resendEmail.subject },
+      'Resend email webhook: fetched email, mapping to inbound payload',
+    );
+
     const payload = mapResendEmailToInboundPayload(resendEmail);
     const result = await acceptInboundEmailPayload(payload);
+
+    logger.info(
+      { statusCode: result.statusCode, from: payload.from },
+      'Resend email webhook: payload accepted, email enqueued for processing',
+    );
 
     res.status(result.statusCode).json(result.body);
   } catch (err) {
