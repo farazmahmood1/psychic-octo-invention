@@ -1,3 +1,4 @@
+import { Resend } from 'resend';
 import { createTransport } from 'nodemailer';
 import type { Transporter } from 'nodemailer';
 import { env, logger } from '@openclaw/config';
@@ -30,14 +31,75 @@ function getTransporter(): Transporter {
 }
 
 /**
- * Send an email via SMTP with retry logic.
- *
- * Handles:
- * - Proper threading headers (In-Reply-To, References)
- * - Retry on transient SMTP errors
- * - Timeout management
+ * Send an email via Resend HTTP API (preferred) or SMTP fallback.
  */
 export async function sendEmail(options: OutboundEmailOptions): Promise<EmailSendResult> {
+  // Prefer Resend HTTP API — avoids SMTP port blocking on platforms like Render
+  if (env.RESEND_API_KEY) {
+    return sendViaResendApi(options);
+  }
+
+  return sendViaSmtp(options);
+}
+
+/**
+ * Send email using Resend's HTTP API.
+ * This bypasses SMTP port restrictions on cloud platforms.
+ */
+async function sendViaResendApi(options: OutboundEmailOptions): Promise<EmailSendResult> {
+  const resend = new Resend(env.RESEND_API_KEY);
+
+  for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+    try {
+      const result = await resend.emails.send({
+        from: env.SMTP_FROM ?? 'noreply@example.com',
+        to: options.to,
+        cc: options.cc,
+        subject: options.subject,
+        text: options.textBody,
+        html: options.htmlBody,
+        replyTo: options.replyTo,
+        headers: {
+          ...(options.inReplyTo ? { 'In-Reply-To': options.inReplyTo } : {}),
+          ...(options.references ? { References: options.references } : {}),
+        },
+      });
+
+      if (result.error) {
+        throw new Error(result.error.message);
+      }
+
+      const providerMessageId = result.data?.id ?? null;
+
+      logger.info(
+        { messageId: providerMessageId, to: options.to },
+        'Email sent successfully via Resend API',
+      );
+
+      return { success: true, providerMessageId, error: null };
+    } catch (err) {
+      const error = err instanceof Error ? err : new Error(String(err));
+
+      logger.warn(
+        { err: error, attempt, to: options.to },
+        'Resend API email send failed, retrying',
+      );
+
+      if (attempt < MAX_RETRIES) {
+        await delay(1000 * (attempt + 1));
+      }
+    }
+  }
+
+  const errorMsg = 'Email send via Resend API failed after retries';
+  logger.error({ to: options.to }, errorMsg);
+  return { success: false, providerMessageId: null, error: errorMsg };
+}
+
+/**
+ * Send email via SMTP with retry logic (fallback when Resend API key is not available).
+ */
+async function sendViaSmtp(options: OutboundEmailOptions): Promise<EmailSendResult> {
   let lastError: Error | null = null;
 
   for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
@@ -60,7 +122,7 @@ export async function sendEmail(options: OutboundEmailOptions): Promise<EmailSen
 
       logger.info(
         { messageId: providerMessageId, to: options.to },
-        'Email sent successfully',
+        'Email sent successfully via SMTP',
       );
 
       return { success: true, providerMessageId, error: null };
