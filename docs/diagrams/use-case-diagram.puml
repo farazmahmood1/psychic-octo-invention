@@ -1,0 +1,172 @@
+@startuml OpenClaw Admin System - Use Case Diagram
+
+title OpenClaw Admin System — Use Case Diagram
+
+left to right direction
+skinparam actorStyle awesome
+skinparam packageStyle rectangle
+skinparam usecase {
+  BackgroundColor<<core>> #E8F5E9
+  BackgroundColor<<admin>> #FFF3E0
+  BackgroundColor<<super>> #FCE4EC
+  BackgroundColor<<external>> #E3F2FD
+}
+
+' ───── Actors ─────
+actor "Viewer" as viewer
+actor "Admin" as admin
+actor "Super Admin" as superadmin
+actor "End User\n(Telegram/Email)" as enduser
+actor "Telegram API" as telegram_api <<external>>
+actor "Resend / SMTP" as email_api <<external>>
+actor "OpenRouter\n(LLM)" as llm_api <<external>>
+actor "GoHighLevel\nCRM" as ghl_api <<external>>
+actor "Google Sheets" as gsheets_api <<external>>
+
+' ───── Inheritance ─────
+viewer <|-- admin
+admin <|-- superadmin
+
+' ───── Frontend (Admin Portal) ─────
+rectangle "Admin Portal (Frontend)" {
+
+  rectangle "Authentication" {
+    usecase "Login" as UC_LOGIN <<core>>
+    usecase "Logout" as UC_LOGOUT <<core>>
+    usecase "Change Password" as UC_CHANGEPW <<core>>
+  }
+
+  rectangle "Dashboard & Monitoring" {
+    usecase "View Dashboard\nStats" as UC_DASHBOARD <<core>>
+    usecase "View Recent\nActivity" as UC_RECENT <<core>>
+    usecase "View Integration\nHealth" as UC_INTEG <<core>>
+  }
+
+  rectangle "Conversation Management" {
+    usecase "List Conversations" as UC_CONV_LIST <<core>>
+    usecase "View Conversation\nDetail" as UC_CONV_DETAIL <<core>>
+    usecase "View Messages" as UC_MESSAGES <<core>>
+  }
+
+  rectangle "Usage & Analytics" {
+    usecase "View Usage\nSummary" as UC_USAGE_SUM <<core>>
+    usecase "View Usage\nTimeseries" as UC_USAGE_TS <<core>>
+  }
+
+  rectangle "Bookkeeping" {
+    usecase "View Receipt\nExtractions" as UC_BOOKKEEP <<core>>
+  }
+
+  rectangle "Audit" {
+    usecase "View Audit\nLogs" as UC_AUDIT <<core>>
+  }
+
+  rectangle "Skill Management" {
+    usecase "List Skills" as UC_SKILLS <<core>>
+    usecase "Ingest New Skill" as UC_INGEST <<admin>>
+    usecase "Toggle Skill\nEnabled" as UC_TOGGLE <<admin>>
+    usecase "View Vetting\nHistory" as UC_VETTING <<core>>
+    usecase "Manual Vetting\nOverride" as UC_OVERRIDE <<super>>
+  }
+
+  rectangle "Settings" {
+    usecase "View Routing\nConfig" as UC_ROUTE_VIEW <<core>>
+    usecase "Update Routing\nConfig" as UC_ROUTE_EDIT <<admin>>
+    usecase "View Tool\nSettings" as UC_TOOL_VIEW <<core>>
+    usecase "Update Tool\nSettings" as UC_TOOL_EDIT <<admin>>
+  }
+
+  rectangle "Security" {
+    usecase "View Blocked\nAttempts" as UC_BLOCKED <<admin>>
+    usecase "View Override\nHistory" as UC_SEC_OVER <<admin>>
+  }
+
+  rectangle "Jobs & Memory" {
+    usecase "View Jobs" as UC_JOBS <<admin>>
+    usecase "Search Memory\nRecords" as UC_MEMORY <<admin>>
+  }
+}
+
+' ───── Backend (API & Workers) ─────
+rectangle "Backend Services" {
+
+  rectangle "Webhook Processing" {
+    usecase "Receive Telegram\nMessage" as UC_TG_RECV <<external>>
+    usecase "Receive Inbound\nEmail" as UC_EMAIL_RECV <<external>>
+    usecase "Process Resend\nWebhook" as UC_RESEND <<external>>
+  }
+
+  rectangle "AI Orchestration" {
+    usecase "Orchestrate\nConversation" as UC_ORCH <<external>>
+    usecase "Route to LLM" as UC_LLM <<external>>
+    usecase "Execute Tools" as UC_TOOLS <<external>>
+    usecase "Dispatch\nSub-Agent" as UC_SUBAGENT <<external>>
+  }
+
+  rectangle "Background Jobs" {
+    usecase "Channel Delivery\nJob" as UC_DELIVER <<external>>
+    usecase "Bookkeeping\nExtraction Job" as UC_BK_JOB <<external>>
+    usecase "Follow-up\nRecommendation" as UC_FOLLOWUP <<external>>
+    usecase "GHL Sub-Agent\nJob" as UC_GHL_JOB <<external>>
+  }
+}
+
+' ───── Viewer Connections ─────
+viewer --> UC_LOGIN
+viewer --> UC_LOGOUT
+viewer --> UC_CHANGEPW
+viewer --> UC_DASHBOARD
+viewer --> UC_RECENT
+viewer --> UC_INTEG
+viewer --> UC_CONV_LIST
+viewer --> UC_CONV_DETAIL
+viewer --> UC_MESSAGES
+viewer --> UC_USAGE_SUM
+viewer --> UC_USAGE_TS
+viewer --> UC_BOOKKEEP
+viewer --> UC_AUDIT
+viewer --> UC_SKILLS
+viewer --> UC_VETTING
+viewer --> UC_ROUTE_VIEW
+viewer --> UC_TOOL_VIEW
+
+' ───── Admin-only Connections ─────
+admin --> UC_INGEST
+admin --> UC_TOGGLE
+admin --> UC_ROUTE_EDIT
+admin --> UC_TOOL_EDIT
+admin --> UC_BLOCKED
+admin --> UC_SEC_OVER
+admin --> UC_JOBS
+admin --> UC_MEMORY
+
+' ───── Super Admin-only Connections ─────
+superadmin --> UC_OVERRIDE
+
+' ───── End User Connections ─────
+enduser --> UC_TG_RECV : sends message
+enduser --> UC_EMAIL_RECV : sends email
+
+' ───── External System Connections ─────
+telegram_api --> UC_TG_RECV : webhook
+email_api --> UC_EMAIL_RECV : inbound
+email_api --> UC_RESEND : delivery events
+
+UC_TG_RECV --> UC_ORCH : triggers
+UC_EMAIL_RECV --> UC_ORCH : triggers
+UC_ORCH --> UC_LLM : calls
+UC_ORCH --> UC_TOOLS : invokes
+UC_ORCH --> UC_SUBAGENT : dispatches
+UC_ORCH --> UC_DELIVER : enqueues
+
+UC_DELIVER --> telegram_api : send reply
+UC_DELIVER --> email_api : send reply
+UC_GHL_JOB --> ghl_api : CRM actions
+UC_BK_JOB --> gsheets_api : export ledger
+UC_LLM --> llm_api : inference
+
+' ───── Include / Extend ─────
+UC_CONV_DETAIL ..> UC_MESSAGES : <<include>>
+UC_INGEST ..> UC_VETTING : <<include>>
+
+@enduml

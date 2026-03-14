@@ -1,0 +1,919 @@
+@startuml OpenClaw Admin System - Class Diagram
+
+title OpenClaw Admin System — Class Diagram
+
+skinparam classAttributeIconSize 0
+skinparam class {
+  BackgroundColor<<model>> #E8F5E9
+  BackgroundColor<<service>> #FFF3E0
+  BackgroundColor<<repository>> #E3F2FD
+  BackgroundColor<<middleware>> #F3E5F5
+  BackgroundColor<<controller>> #FFF9C4
+  BackgroundColor<<integration>> #FCE4EC
+  BackgroundColor<<frontend>> #E0F7FA
+}
+
+' ════════════════════════════════════════════
+' DATABASE MODELS (Prisma)
+' ════════════════════════════════════════════
+
+package "Database Models" <<Rectangle>> {
+
+  class Admin <<model>> {
+    +id: String <<PK>>
+    +email: String <<unique>>
+    +passwordHash: String
+    +displayName: String?
+    +role: AdminRole
+    +isActive: Boolean
+    +lastLoginAt: DateTime?
+    +lastLoginIp: String?
+    +createdAt: DateTime
+    +updatedAt: DateTime
+  }
+
+  enum AdminRole {
+    super_admin
+    admin
+    viewer
+  }
+
+  class AdminSession <<model>> {
+    +id: String <<PK>>
+    +adminId: String <<FK>>
+    +tokenHash: String <<unique>>
+    +csrfToken: String
+    +expiresAt: DateTime
+    +ipAddress: String?
+    +userAgent: String?
+    +createdAt: DateTime
+  }
+
+  class Conversation <<model>> {
+    +id: String <<PK>>
+    +channel: Channel
+    +status: ConversationStatus
+    +subject: String?
+    +metadata: Json?
+    +createdAt: DateTime
+    +updatedAt: DateTime
+    +lastActivityAt: DateTime
+  }
+
+  enum Channel {
+    telegram
+    email
+    admin_portal
+  }
+
+  enum ConversationStatus {
+    active
+    archived
+    closed
+  }
+
+  class Participant <<model>> {
+    +id: String <<PK>>
+    +conversationId: String <<FK>>
+    +role: String
+    +displayName: String?
+    +channelIdentifier: String?
+    +metadata: Json?
+    +createdAt: DateTime
+  }
+
+  class Message <<model>> {
+    +id: String <<PK>>
+    +conversationId: String <<FK>>
+    +participantId: String? <<FK>>
+    +direction: MessageDirection
+    +content: String
+    +contentType: String
+    +status: MessageStatus
+    +metadata: Json?
+    +channelMessageId: String?
+    +createdAt: DateTime
+  }
+
+  enum MessageDirection {
+    inbound
+    outbound
+  }
+
+  enum MessageStatus {
+    pending
+    sent
+    delivered
+    failed
+    received
+  }
+
+  class TelegramChat <<model>> {
+    +id: String <<PK>>
+    +conversationId: String <<FK>>
+    +telegramChatId: String <<unique>>
+    +chatType: String
+    +title: String?
+    +metadata: Json?
+    +createdAt: DateTime
+  }
+
+  class EmailThread <<model>> {
+    +id: String <<PK>>
+    +conversationId: String <<FK>>
+    +threadId: String <<unique>>
+    +subject: String
+    +fromAddress: String
+    +toAddresses: String[]
+    +metadata: Json?
+    +createdAt: DateTime
+  }
+
+  class EmailMessage <<model>> {
+    +id: String <<PK>>
+    +emailThreadId: String <<FK>>
+    +messageId: String <<unique>>
+    +direction: MessageDirection
+    +fromAddress: String
+    +toAddresses: String[]
+    +subject: String
+    +bodyText: String?
+    +bodyHtml: String?
+    +status: String
+    +createdAt: DateTime
+  }
+
+  class MemoryRecord <<model>> {
+    +id: String <<PK>>
+    +namespace: String
+    +subjectKey: String
+    +value: String
+    +confidence: Float?
+    +source: String?
+    +expiresAt: DateTime?
+    +createdAt: DateTime
+    +updatedAt: DateTime
+  }
+
+  class Skill <<model>> {
+    +id: String <<PK>>
+    +slug: String <<unique>>
+    +displayName: String
+    +description: String?
+    +sourceType: SkillSourceType
+    +enabled: Boolean
+    +createdAt: DateTime
+    +updatedAt: DateTime
+  }
+
+  enum SkillSourceType {
+    builtin
+    uploaded
+    git_repo
+    marketplace
+  }
+
+  class SkillVersion <<model>> {
+    +id: String <<PK>>
+    +skillId: String <<FK>>
+    +version: String
+    +codeHash: String
+    +changelog: String?
+    +config: Json?
+    +createdAt: DateTime
+  }
+
+  class SkillVettingResult <<model>> {
+    +id: String <<PK>>
+    +skillVersionId: String <<FK>>
+    +result: VettingResult
+    +reviewer: VettingReviewer
+    +reason: String?
+    +details: Json?
+    +createdAt: DateTime
+  }
+
+  enum VettingResult {
+    passed
+    failed
+    warning
+    pending
+  }
+
+  enum VettingReviewer {
+    system
+    manual
+  }
+
+  class AuditLog <<model>> {
+    +id: String <<PK>>
+    +actorId: String?
+    +actorEmail: String?
+    +action: String
+    +targetType: String?
+    +targetId: String?
+    +metadata: Json?
+    +ipAddress: String?
+    +userAgent: String?
+    +createdAt: DateTime
+  }
+
+  class UsageLog <<model>> {
+    +id: String <<PK>>
+    +messageId: String? <<FK>>
+    +provider: String
+    +model: String
+    +inputTokens: Int
+    +outputTokens: Int
+    +totalTokens: Int
+    +costUsd: Float
+    +latencyMs: Int
+    +createdAt: DateTime
+  }
+
+  class Job <<model>> {
+    +id: String <<PK>>
+    +queueName: String
+    +jobType: String
+    +status: JobStatus
+    +payload: Json?
+    +result: Json?
+    +error: String?
+    +attempts: Int
+    +maxRetries: Int
+    +createdAt: DateTime
+    +updatedAt: DateTime
+    +completedAt: DateTime?
+  }
+
+  enum JobStatus {
+    pending
+    running
+    completed
+    failed
+  }
+
+  class SubAgentTask <<model>> {
+    +id: String <<PK>>
+    +conversationId: String? <<FK>>
+    +taskType: String
+    +status: SubAgentStatus
+    +input: Json?
+    +output: Json?
+    +error: String?
+    +createdAt: DateTime
+    +completedAt: DateTime?
+  }
+
+  enum SubAgentStatus {
+    queued
+    running
+    completed
+    failed
+  }
+
+  class Integration <<model>> {
+    +id: String <<PK>>
+    +name: String <<unique>>
+    +type: String
+    +config: Json?
+    +status: IntegrationStatus
+    +lastCheckedAt: DateTime?
+    +createdAt: DateTime
+    +updatedAt: DateTime
+  }
+
+  enum IntegrationStatus {
+    active
+    inactive
+    error
+  }
+
+  class ReceiptExtraction <<model>> {
+    +id: String <<PK>>
+    +conversationId: String? <<FK>>
+    +imageUrl: String?
+    +vendor: String?
+    +amount: Float?
+    +currency: String?
+    +date: DateTime?
+    +items: Json?
+    +status: ExtractionStatus
+    +createdAt: DateTime
+  }
+
+  enum ExtractionStatus {
+    pending
+    extracted
+    exported
+    failed
+  }
+
+  class LedgerExport <<model>> {
+    +id: String <<PK>>
+    +receiptExtractionId: String? <<FK>>
+    +spreadsheetId: String
+    +sheetName: String?
+    +rowNumber: Int?
+    +status: ExportStatus
+    +createdAt: DateTime
+  }
+
+  enum ExportStatus {
+    pending
+    exported
+    failed
+  }
+
+  class GhlActionLog <<model>> {
+    +id: String <<PK>>
+    +conversationId: String? <<FK>>
+    +actionType: String
+    +contactId: String?
+    +opportunityId: String?
+    +request: Json?
+    +response: Json?
+    +status: String
+    +createdAt: DateTime
+  }
+
+  class SystemSetting <<model>> {
+    +id: String <<PK>>
+    +key: String <<unique>>
+    +value: Json
+    +updatedBy: String?
+    +createdAt: DateTime
+    +updatedAt: DateTime
+  }
+
+  class FollowUpRecommendation <<model>> {
+    +id: String <<PK>>
+    +conversationId: String <<FK>>
+    +priority: String
+    +reason: String
+    +suggestedMessage: String?
+    +status: FollowUpStatus
+    +createdAt: DateTime
+    +updatedAt: DateTime
+  }
+
+  enum FollowUpStatus {
+    draft
+    pending_review
+    approved
+    sent
+  }
+}
+
+' ════════════════════════════════════════════
+' MODEL RELATIONSHIPS
+' ════════════════════════════════════════════
+
+Admin "1" --> "*" AdminSession : has sessions
+Admin "1" --> "*" AuditLog : performs actions
+Admin ..> AdminRole
+
+Conversation "1" --> "*" Message : contains
+Conversation "1" --> "*" Participant : has participants
+Conversation "1" --> "0..1" TelegramChat : linked via
+Conversation "1" --> "0..1" EmailThread : linked via
+Conversation "1" --> "*" SubAgentTask : triggers
+Conversation "1" --> "*" ReceiptExtraction : has extractions
+Conversation "1" --> "*" GhlActionLog : logs actions
+Conversation "1" --> "*" FollowUpRecommendation : has follow-ups
+
+Message "1" --> "0..1" UsageLog : tracks usage
+Message "*" --> "0..1" Participant : sent by
+
+EmailThread "1" --> "*" EmailMessage : contains
+
+Skill "1" --> "*" SkillVersion : has versions
+SkillVersion "1" --> "*" SkillVettingResult : vetted by
+
+ReceiptExtraction "1" --> "0..1" LedgerExport : exported via
+
+' ════════════════════════════════════════════
+' BACKEND SERVICES
+' ════════════════════════════════════════════
+
+package "Backend — Services" <<Rectangle>> {
+
+  class AuthService <<service>> {
+    +login(email, password): SessionUser
+    +logout(sessionId): void
+    +validateSession(tokenHash): SessionUser
+    +changePassword(adminId, current, new): void
+    +generateSessionToken(): string
+    +generateCsrfToken(): string
+    -hashPassword(password): string
+    -verifyPassword(password, hash): boolean
+  }
+
+  class ConversationService <<service>> {
+    +list(filters, pagination): PaginatedResponse
+    +getById(id): Conversation
+  }
+
+  class MessageService <<service>> {
+    +listByConversation(convId, pagination): PaginatedResponse
+  }
+
+  class DashboardService <<service>> {
+    +getStats(): DashboardStats
+    +getRecentActivity(): AuditLog[]
+  }
+
+  class UsageService <<service>> {
+    +getSummary(filters): UsageSummary
+    +getTimeseries(filters): TimeseriesData[]
+  }
+
+  class AuditService <<service>> {
+    +list(filters, pagination): PaginatedResponse
+    +log(action, actor, target, metadata): void
+  }
+
+  class SettingsService <<service>> {
+    +getRouting(): RoutingConfig
+    +updateRouting(config): RoutingConfig
+    +getTools(): ToolConfig
+    +updateTools(config): ToolConfig
+  }
+
+  class IntegrationService <<service>> {
+    +getHealth(): IntegrationHealth[]
+  }
+
+  class JobService <<service>> {
+    +list(filters, pagination): PaginatedResponse
+  }
+
+  class MemoryService <<service>> {
+    +search(namespace, key, pagination): PaginatedResponse
+  }
+
+  class SecurityAdminService <<service>> {
+    +getBlockedAttempts(pagination): PaginatedResponse
+    +getOverrides(pagination): PaginatedResponse
+  }
+
+  class BookkeepingAdminService <<service>> {
+    +list(pagination): PaginatedResponse
+  }
+
+  class SkillService <<service>> {
+    +list(): Skill[]
+    +ingest(slug, displayName, sourceType): Skill
+    +toggleEnabled(id, enabled): Skill
+    +manualOverride(id, result, reason): SkillVettingResult
+    +getVettingHistory(id): SkillVettingResult[]
+  }
+}
+
+' ════════════════════════════════════════════
+' BACKEND REPOSITORIES
+' ════════════════════════════════════════════
+
+package "Backend — Repositories" <<Rectangle>> {
+
+  class AdminRepository <<repository>> {
+    +findByEmail(email): Admin?
+    +findById(id): Admin?
+    +updateLastLogin(id, ip): void
+  }
+
+  class SessionRepository <<repository>> {
+    +create(data): AdminSession
+    +findByTokenHash(hash): AdminSession?
+    +delete(id): void
+    +deleteAllForAdmin(adminId): void
+  }
+
+  class ConversationRepository <<repository>> {
+    +findMany(filters, pagination): Conversation[]
+    +findById(id): Conversation?
+    +count(filters): number
+  }
+
+  class MessageRepository <<repository>> {
+    +findByConversation(convId, pagination): Message[]
+    +create(data): Message
+    +updateStatus(id, status): void
+  }
+
+  class AuditRepository <<repository>> {
+    +create(data): AuditLog
+    +findMany(filters, pagination): AuditLog[]
+  }
+
+  class UsageRepository <<repository>> {
+    +aggregate(filters): UsageSummary
+    +timeseries(filters): TimeseriesPoint[]
+  }
+
+  class SkillRepository <<repository>> {
+    +findAll(): Skill[]
+    +findById(id): Skill?
+    +create(data): Skill
+    +update(id, data): Skill
+  }
+
+  class MemoryRepository <<repository>> {
+    +search(namespace, key, pagination): MemoryRecord[]
+  }
+
+  class IntegrationRepository <<repository>> {
+    +findAll(): Integration[]
+  }
+
+  class JobRepository <<repository>> {
+    +findMany(filters, pagination): Job[]
+  }
+
+  class SettingRepository <<repository>> {
+    +get(key): SystemSetting?
+    +upsert(key, value, updatedBy): SystemSetting
+  }
+
+  class ReceiptExtractionRepository <<repository>> {
+    +findMany(pagination): ReceiptExtraction[]
+  }
+}
+
+' ════════════════════════════════════════════
+' SERVICE → REPOSITORY RELATIONSHIPS
+' ════════════════════════════════════════════
+
+AuthService --> AdminRepository : uses
+AuthService --> SessionRepository : uses
+AuthService --> AuditRepository : logs to
+ConversationService --> ConversationRepository : uses
+MessageService --> MessageRepository : uses
+DashboardService --> ConversationRepository : uses
+DashboardService --> UsageRepository : uses
+DashboardService --> AuditRepository : uses
+UsageService --> UsageRepository : uses
+AuditService --> AuditRepository : uses
+SettingsService --> SettingRepository : uses
+IntegrationService --> IntegrationRepository : uses
+JobService --> JobRepository : uses
+MemoryService --> MemoryRepository : uses
+SkillService --> SkillRepository : uses
+SkillService --> AuditRepository : logs to
+BookkeepingAdminService --> ReceiptExtractionRepository : uses
+SecurityAdminService --> SkillRepository : uses
+
+' ════════════════════════════════════════════
+' BACKEND MIDDLEWARE
+' ════════════════════════════════════════════
+
+package "Backend — Middleware" <<Rectangle>> {
+
+  class SessionMiddleware <<middleware>> {
+    +handle(req, res, next): void
+    -loadSession(cookie): SessionUser?
+  }
+
+  class RequireAuth <<middleware>> {
+    +handle(req, res, next): void
+  }
+
+  class RequireRole <<middleware>> {
+    +handle(minRole: AdminRole): RequestHandler
+    -roleLevel(role: AdminRole): number
+  }
+
+  class CsrfMiddleware <<middleware>> {
+    +handle(req, res, next): void
+    -isStateChanging(method): boolean
+  }
+
+  class LoginRateLimit <<middleware>> {
+    +handle(req, res, next): void
+  }
+
+  class RequestTimeout <<middleware>> {
+    +handle(timeoutMs: number): RequestHandler
+  }
+
+  class ErrorHandler <<middleware>> {
+    +handle(err, req, res, next): void
+  }
+}
+
+SessionMiddleware --> AuthService : validates via
+RequireRole ..> AdminRole : checks against
+
+' ════════════════════════════════════════════
+' BACKEND ROUTE CONTROLLERS
+' ════════════════════════════════════════════
+
+package "Backend — Routes" <<Rectangle>> {
+
+  class AuthRoutes <<controller>> {
+    POST /login
+    POST /logout
+    GET /me
+    POST /change-password
+  }
+
+  class DashboardRoutes <<controller>> {
+    GET /stats
+    GET /recent-activity
+  }
+
+  class ConversationRoutes <<controller>> {
+    GET /
+    GET /:id
+    GET /:id/messages
+  }
+
+  class UsageRoutes <<controller>> {
+    GET /summary
+    GET /timeseries
+  }
+
+  class SkillRoutes <<controller>> {
+    GET /
+    POST /ingest
+    PATCH /:id/enabled
+    POST /:id/manual-override
+    GET /:id/vetting-history
+  }
+
+  class AuditRoutes <<controller>> {
+    GET /
+  }
+
+  class SettingsRoutes <<controller>> {
+    GET /routing
+    PATCH /routing
+    GET /tools
+    PATCH /tools
+  }
+
+  class IntegrationRoutes <<controller>> {
+    GET /health
+  }
+
+  class JobRoutes <<controller>> {
+    GET /
+  }
+
+  class MemoryRoutes <<controller>> {
+    GET /search
+  }
+
+  class BookkeepingRoutes <<controller>> {
+    GET /
+  }
+
+  class SecurityRoutes <<controller>> {
+    GET /blocked
+    GET /overrides
+  }
+
+  class WebhookRoutes <<controller>> {
+    POST /telegram
+    POST /email
+    POST /email/resend
+  }
+}
+
+AuthRoutes --> AuthService
+DashboardRoutes --> DashboardService
+ConversationRoutes --> ConversationService
+ConversationRoutes --> MessageService
+UsageRoutes --> UsageService
+SkillRoutes --> SkillService
+AuditRoutes --> AuditService
+SettingsRoutes --> SettingsService
+IntegrationRoutes --> IntegrationService
+JobRoutes --> JobService
+MemoryRoutes --> MemoryService
+BookkeepingRoutes --> BookkeepingAdminService
+SecurityRoutes --> SecurityAdminService
+
+' ════════════════════════════════════════════
+' ORCHESTRATION
+' ════════════════════════════════════════════
+
+package "Backend — Orchestration" <<Rectangle>> {
+
+  class Orchestrator <<service>> {
+    +handleInbound(message): void
+    -buildContext(conversation): Context
+    -runLoop(context): Response
+  }
+
+  class PromptComposer <<service>> {
+    +compose(context, tools, memory): Prompt
+  }
+
+  class ToolResolver <<service>> {
+    +resolve(skills, settings): Tool[]
+  }
+
+  class SubAgentDispatcher <<service>> {
+    +dispatch(task): SubAgentTask
+  }
+
+  class ExternalToolExecutor <<service>> {
+    +execute(tool, args): ToolResult
+  }
+
+  class ConversationManager <<service>> {
+    +getOrCreate(channel, identifier): Conversation
+    +addMessage(convId, message): Message
+  }
+}
+
+Orchestrator --> PromptComposer
+Orchestrator --> ToolResolver
+Orchestrator --> SubAgentDispatcher
+Orchestrator --> ExternalToolExecutor
+Orchestrator --> ConversationManager
+WebhookRoutes --> Orchestrator : triggers
+
+' ════════════════════════════════════════════
+' INTEGRATIONS (EXTERNAL CLIENTS)
+' ════════════════════════════════════════════
+
+package "Backend — Integrations" <<Rectangle>> {
+
+  class TelegramClient <<integration>> {
+    +sendMessage(chatId, text): void
+    +setWebhook(url): void
+  }
+
+  class TelegramProcessor <<integration>> {
+    +processUpdate(update): void
+    +normalizeMessage(update): NormalizedMessage
+  }
+
+  class EmailClient <<integration>> {
+    +send(to, subject, body): void
+  }
+
+  class ResendClient <<integration>> {
+    +send(params): void
+    +processWebhook(event): void
+  }
+
+  class OpenRouterClient <<integration>> {
+    +chat(model, messages, tools): LLMResponse
+  }
+
+  class GhlClient <<integration>> {
+    +searchContacts(query): Contact[]
+    +createContact(data): Contact
+    +updateContact(id, data): void
+    +createOpportunity(data): Opportunity
+  }
+
+  class GoogleSheetsClient <<integration>> {
+    +appendRow(spreadsheetId, sheet, data): void
+    +getRows(spreadsheetId, range): Row[]
+  }
+}
+
+Orchestrator --> OpenRouterClient : calls LLM
+ExternalToolExecutor --> GhlClient : CRM actions
+ExternalToolExecutor --> GoogleSheetsClient : bookkeeping
+
+' ════════════════════════════════════════════
+' BACKGROUND JOBS
+' ════════════════════════════════════════════
+
+package "Backend — Jobs (BullMQ)" <<Rectangle>> {
+
+  class OrchestrationJob <<service>> {
+    +process(data): void
+  }
+
+  class ChannelDeliveryJob <<service>> {
+    +process(data): void
+  }
+
+  class EmailProcessingJob <<service>> {
+    +process(data): void
+  }
+
+  class BookkeepingJob <<service>> {
+    +process(data): void
+  }
+
+  class FollowUpJob <<service>> {
+    +process(data): void
+  }
+
+  class GhlSubAgentJob <<service>> {
+    +process(data): void
+  }
+}
+
+OrchestrationJob --> Orchestrator : delegates to
+ChannelDeliveryJob --> TelegramClient : delivers via
+ChannelDeliveryJob --> EmailClient : delivers via
+ChannelDeliveryJob --> ResendClient : delivers via
+BookkeepingJob --> GoogleSheetsClient : exports to
+GhlSubAgentJob --> GhlClient : executes via
+
+' ════════════════════════════════════════════
+' FRONTEND COMPONENTS
+' ════════════════════════════════════════════
+
+package "Frontend — React Application" <<Rectangle>> {
+
+  class App <<frontend>> {
+    +Router setup
+    +AuthProvider wrapping
+  }
+
+  class AuthContext <<frontend>> {
+    +user: SessionUser | null
+    +login(email, password): void
+    +logout(): void
+    +isAuthenticated: boolean
+  }
+
+  class ProtectedRoute <<frontend>> {
+    +children: ReactNode
+    -redirectToLogin(): void
+  }
+
+  class ApiClient <<frontend>> {
+    +get<T>(path, params?): Promise<T>
+    +post<T>(path, body?): Promise<T>
+    +patch<T>(path, body?): Promise<T>
+    +delete<T>(path): Promise<T>
+    -getCsrfToken(): string
+    -handleError(response): never
+  }
+
+  class DashboardLayout <<frontend>> {
+    +Sidebar navigation
+    +Header with user info
+    +Content area (Outlet)
+  }
+
+  class LoginPage <<frontend>>
+  class DashboardPage <<frontend>>
+  class ChatsPage <<frontend>>
+  class ConversationDetailPage <<frontend>>
+  class UsagePage <<frontend>>
+  class SkillsPage <<frontend>>
+  class AuditPage <<frontend>>
+  class IntegrationsPage <<frontend>>
+  class JobsPage <<frontend>>
+  class BookkeepingPage <<frontend>>
+  class MemoryPage <<frontend>>
+  class SecurityPage <<frontend>>
+  class SettingsPage <<frontend>>
+}
+
+App --> AuthContext : provides
+App --> ProtectedRoute : guards routes
+ProtectedRoute --> DashboardLayout : wraps
+DashboardLayout --> DashboardPage
+DashboardLayout --> ChatsPage
+DashboardLayout --> ConversationDetailPage
+DashboardLayout --> UsagePage
+DashboardLayout --> SkillsPage
+DashboardLayout --> AuditPage
+DashboardLayout --> IntegrationsPage
+DashboardLayout --> JobsPage
+DashboardLayout --> BookkeepingPage
+DashboardLayout --> MemoryPage
+DashboardLayout --> SecurityPage
+DashboardLayout --> SettingsPage
+
+' All pages use the ApiClient
+DashboardPage --> ApiClient
+ChatsPage --> ApiClient
+ConversationDetailPage --> ApiClient
+UsagePage --> ApiClient
+SkillsPage --> ApiClient
+AuditPage --> ApiClient
+IntegrationsPage --> ApiClient
+JobsPage --> ApiClient
+BookkeepingPage --> ApiClient
+MemoryPage --> ApiClient
+SecurityPage --> ApiClient
+SettingsPage --> ApiClient
+
+' Frontend talks to backend via API
+ApiClient ..> AuthRoutes : HTTP
+ApiClient ..> DashboardRoutes : HTTP
+ApiClient ..> ConversationRoutes : HTTP
+ApiClient ..> UsageRoutes : HTTP
+ApiClient ..> SkillRoutes : HTTP
+ApiClient ..> AuditRoutes : HTTP
+ApiClient ..> SettingsRoutes : HTTP
+ApiClient ..> IntegrationRoutes : HTTP
+ApiClient ..> JobRoutes : HTTP
+ApiClient ..> MemoryRoutes : HTTP
+ApiClient ..> BookkeepingRoutes : HTTP
+ApiClient ..> SecurityRoutes : HTTP
+
+@enduml

@@ -1,0 +1,297 @@
+@startuml OpenClaw Admin System - Activity Diagram
+
+title OpenClaw Admin System — Activity Diagram (Key Workflows)
+
+|#E8F5E9| Frontend (Admin Portal) |
+|#FFF3E0| Backend (API) |
+|#E3F2FD| External Services |
+|#FCE4EC| Background Worker |
+
+' ════════════════════════════════════════════
+' SWIM LANE 1: Authentication Flow
+' ════════════════════════════════════════════
+
+partition "**1. Authentication Flow**" {
+
+  |Frontend (Admin Portal)|
+  start
+  :Admin opens Login Page;
+  :Enter email & password;
+  :Submit login form;
+
+  |Backend (API)|
+  :Receive POST /api/v1/auth/login;
+  :Validate request with Zod schema;
+
+  if (Validation passes?) then (yes)
+    :Rate-limit check (login-specific);
+
+    if (Rate limit OK?) then (yes)
+      :Look up Admin by email;
+
+      if (Admin found?) then (yes)
+        :Verify password with Argon2;
+
+        if (Password correct?) then (yes)
+          :Generate session token\n(random 32 bytes hex);
+          :Hash token (SHA-256)\nfor DB storage;
+          :Generate CSRF token\n(random 24 bytes hex);
+          :Create AdminSession record;
+          :Update Admin.lastLoginAt\n& lastLoginIp;
+          :Set httpOnly cookie:\n**openclaw.session**;
+          :Set readable cookie:\n**openclaw.csrf**;
+          :Write AuditLog entry\n(admin.login);
+
+          |Frontend (Admin Portal)|
+          :Redirect to /dashboard;
+          :Load Dashboard page;
+
+        else (no)
+          |Backend (API)|
+          :Return 401 Unauthorized;
+          |Frontend (Admin Portal)|
+          :Show error message;
+        endif
+
+      else (no)
+        |Backend (API)|
+        :Return 401 Unauthorized;
+        |Frontend (Admin Portal)|
+        :Show error message;
+      endif
+
+    else (rate limited)
+      |Backend (API)|
+      :Return 429 Too Many Requests;
+      |Frontend (Admin Portal)|
+      :Show rate limit error;
+    endif
+
+  else (no)
+    |Backend (API)|
+    :Return 400 Validation Error;
+    |Frontend (Admin Portal)|
+    :Show field errors;
+  endif
+
+  stop
+}
+
+' ════════════════════════════════════════════
+' SWIM LANE 2: Conversation Orchestration
+' ════════════════════════════════════════════
+
+partition "**2. Inbound Message Orchestration**" {
+
+  |External Services|
+  start
+  :End user sends message\n(Telegram / Email);
+
+  |Backend (API)|
+  :Webhook receives message\n(POST /webhooks/telegram\nor /webhooks/email);
+  :Normalize message to\nstandard format;
+  :Find or create Conversation;
+  :Create inbound Message record;
+  :Enqueue orchestration job;
+
+  |Background Worker|
+  :Pick up orchestration job;
+  :Load conversation context\n& memory records;
+  :Compose prompt\n(PromptComposer);
+  :Resolve available tools\n(ToolResolver);
+
+  |External Services|
+  :Call LLM via OpenRouter;
+  :Receive LLM response;
+
+  |Background Worker|
+
+  if (Response contains\ntool calls?) then (yes)
+    :Execute tools\n(ExternalToolExecutor);
+
+    if (Sub-agent needed?) then (yes)
+      :Dispatch sub-agent task\n(SubAgentDispatcher);
+      :Create SubAgentTask record;
+      :Execute sub-agent;
+      :Collect sub-agent result;
+    endif
+
+    :Re-compose prompt\nwith tool results;
+
+    |External Services|
+    :Call LLM again;
+
+    |Background Worker|
+  else (no)
+  endif
+
+  :Create outbound Message record;
+  :Log UsageLog\n(tokens, cost, latency);
+  :Enqueue channel-delivery job;
+
+  |Background Worker|
+  :Pick up delivery job;
+  :Determine delivery channel;
+
+  if (Telegram?) then (yes)
+    |External Services|
+    :Send via Telegram API;
+  else (Email)
+    |External Services|
+    :Send via Resend / SMTP;
+  endif
+
+  |Background Worker|
+  :Update Message status\n(sent / delivered / failed);
+  :Update Conversation\nlast activity;
+
+  stop
+}
+
+' ════════════════════════════════════════════
+' SWIM LANE 3: Skill Vetting Pipeline
+' ════════════════════════════════════════════
+
+partition "**3. Skill Ingestion & Vetting**" {
+
+  |Frontend (Admin Portal)|
+  start
+  :Admin navigates to\nSkills page;
+  :Fill in skill details\n(slug, name, sourceType);
+  :Submit ingest form;
+
+  |Backend (API)|
+  :Receive POST /api/v1/skills/ingest;
+  :Validate with Zod schema;
+  :Check admin role >= admin;
+  :Create Skill record\n(or find existing);
+  :Create SkillVersion record\n(codeHash, config);
+  :Create SkillVettingResult\n(status: pending);
+  :Run automated vetting\n(code analysis, policy check);
+
+  if (Automated vetting\npasses?) then (passed)
+    :Set vetting result = passed;
+    :Write AuditLog entry;
+
+    |Frontend (Admin Portal)|
+    :Show skill as\n"Passed — Ready to enable";
+    :Admin toggles\nskill enabled;
+
+    |Backend (API)|
+    :PATCH /:id/enabled;
+    :Verify latest vetting = passed;
+    :Update Skill.enabled = true;
+    :Write AuditLog entry;
+
+  else (failed / warning)
+    :Set vetting result =\nfailed or warning;
+    :Write AuditLog entry;
+
+    |Frontend (Admin Portal)|
+    :Show vetting failure\nwith details;
+
+    if (Super Admin\nwants override?) then (yes)
+      :Submit manual override\nwith reason;
+
+      |Backend (API)|
+      :POST /:id/manual-override;
+      :Check role = super_admin;
+      :Create new SkillVettingResult\n(reviewer: manual);
+      :Write AuditLog entry;
+
+      |Frontend (Admin Portal)|
+      :Skill now overridden;
+    else (no)
+      |Frontend (Admin Portal)|
+      :Skill remains disabled;
+    endif
+  endif
+
+  stop
+}
+
+' ════════════════════════════════════════════
+' SWIM LANE 4: Bookkeeping Flow
+' ════════════════════════════════════════════
+
+partition "**4. Bookkeeping & Receipt Extraction**" {
+
+  |Background Worker|
+  start
+  :Bookkeeping job triggered\n(receipt image received);
+  :Create ReceiptExtraction\nrecord (status: pending);
+
+  |External Services|
+  :Send image to LLM\n(Vision processing);
+  :Extract receipt data\n(vendor, amount, date, items);
+
+  |Background Worker|
+  :Store extraction result;
+  :Update status = extracted;
+
+  if (Google Sheets\nconfigured?) then (yes)
+    |External Services|
+    :Export to Google Sheets\n(Bookkeeping Spreadsheet);
+
+    |Background Worker|
+    :Create LedgerExport record;
+    :Update status = exported;
+  else (no)
+    :Skip export;
+  endif
+
+  |Frontend (Admin Portal)|
+  :Admin views extractions\non Bookkeeping page;
+
+  stop
+}
+
+' ════════════════════════════════════════════
+' SWIM LANE 5: Admin Page Navigation
+' ════════════════════════════════════════════
+
+partition "**5. Protected Page Navigation**" {
+
+  |Frontend (Admin Portal)|
+  start
+  :User clicks navigation link;
+  :React Router matches route;
+  :ProtectedRoute component\nchecks auth context;
+
+  if (Session exists\nin auth context?) then (yes)
+    :Render requested page;
+    :Page component calls\nAPI via apiClient;
+
+    |Backend (API)|
+    :Session middleware\nloads session from cookie;
+    :CSRF middleware validates\ntoken for mutations;
+    :requireAuth middleware\nchecks session exists;
+
+    if (Role-restricted\nendpoint?) then (yes)
+      :requireRole checks\nuser role level;
+
+      if (Sufficient role?) then (yes)
+        :Execute route handler;
+        :Return JSON response;
+      else (no)
+        :Return 403 Forbidden;
+        |Frontend (Admin Portal)|
+        :Show access denied;
+        stop
+      endif
+    else (no)
+      :Execute route handler;
+      :Return JSON response;
+    endif
+
+    |Frontend (Admin Portal)|
+    :Render data in page;
+
+  else (no)
+    :Redirect to /login;
+  endif
+
+  stop
+}
+
+@enduml
