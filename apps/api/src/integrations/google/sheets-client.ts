@@ -203,7 +203,7 @@ export class SheetsApiError extends Error {
  */
 export async function appendBookkeepingRow(
   row: BookkeepingSheetRow,
-  sheetName = 'Bookkeeping',
+  sheetName = 'Sheet1',
 ): Promise<{ updatedRange: string }> {
   const spreadsheetId = env.GOOGLE_SHEETS_BOOKKEEPING_SPREADSHEET_ID;
   const range = `${sheetName}!A:L`;
