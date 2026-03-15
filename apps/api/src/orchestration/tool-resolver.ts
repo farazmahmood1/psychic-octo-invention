@@ -56,26 +56,28 @@ IMPORTANT:
  */
 const BOOKKEEPING_TOOL: LlmToolDefinition = {
   name: BOOKKEEPING_TOOL_NAME,
-  description: `Bookkeeping receipt processor. Use this tool when the user sends a receipt image or wants to categorize a pending receipt.
+  description: `Bookkeeping receipt and expense processor. Use this tool when the user sends a receipt image, wants to categorize a pending receipt, or wants to manually log an expense.
 
 Supported actions:
 - process_receipt: Extract data from a receipt image (requires imageUrl)
 - set_category: Set the category for a pending receipt that needs categorization
 - get_pending: Check if there is a pending receipt awaiting categorization in this conversation
+- manual_entry: Log an expense manually without a receipt image (requires vendor, amount, category)
 
 Common categories: ${BOOKKEEPING_CATEGORIES.join(', ')}
 
 IMPORTANT:
 - When the user sends a receipt image, use process_receipt with the image URL
+- When the user describes an expense in text (e.g. "$18.50 at Starbucks"), use manual_entry
 - If the system asks for a category and the user provides one, use set_category
-- After successful extraction, confirm the extracted details with the user
+- After successful extraction or entry, confirm the details with the user
 - If confidence is low, mention that the user should verify the details`,
   parameters: {
     type: 'object',
     properties: {
       action: {
         type: 'string',
-        enum: ['process_receipt', 'set_category', 'get_pending'],
+        enum: ['process_receipt', 'set_category', 'get_pending', 'manual_entry'],
         description: 'The bookkeeping action to perform',
       },
       imageUrl: {
@@ -88,11 +90,27 @@ IMPORTANT:
       },
       category: {
         type: 'string',
-        description: 'Expense category — used with set_category',
+        description: 'Expense category — used with set_category and manual_entry',
+      },
+      vendor: {
+        type: 'string',
+        description: 'Vendor/store name — used with manual_entry',
+      },
+      amount: {
+        type: 'number',
+        description: 'Expense amount — used with manual_entry',
+      },
+      transactionDate: {
+        type: 'string',
+        description: 'Transaction date (YYYY-MM-DD) — used with manual_entry. Defaults to today.',
+      },
+      currency: {
+        type: 'string',
+        description: 'Currency code (e.g. USD) — used with manual_entry. Defaults to USD.',
       },
       notes: {
         type: 'string',
-        description: 'Optional notes about the receipt',
+        description: 'Optional notes about the receipt or expense',
       },
     },
     required: ['action'],

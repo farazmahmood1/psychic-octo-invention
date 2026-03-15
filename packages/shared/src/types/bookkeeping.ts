@@ -20,7 +20,7 @@ export interface ReceiptExtractionData {
  * Input for the bookkeeping sub-agent tool call.
  */
 export interface BookkeepingSubAgentInput {
-  action: 'process_receipt' | 'set_category' | 'get_pending';
+  action: 'process_receipt' | 'set_category' | 'get_pending' | 'manual_entry';
   /** Image URL for receipt processing */
   imageUrl?: string;
   /** Receipt task ID for category confirmation */
@@ -29,6 +29,14 @@ export interface BookkeepingSubAgentInput {
   category?: string;
   /** Additional notes */
   notes?: string;
+  /** Vendor/store name — used with manual_entry */
+  vendor?: string;
+  /** Amount — used with manual_entry */
+  amount?: number;
+  /** Transaction date (YYYY-MM-DD) — used with manual_entry */
+  transactionDate?: string;
+  /** Currency code — used with manual_entry (default: USD) */
+  currency?: string;
 }
 
 /**

@@ -171,7 +171,7 @@ async function executeBookkeepingSubAgent(
   context?: SubAgentCallContext,
 ): Promise<SubAgentDispatch> {
   const rawAction = (args['action'] as string) ?? 'process_receipt';
-  const action = (['process_receipt', 'set_category', 'get_pending'].includes(rawAction)
+  const action = (['process_receipt', 'set_category', 'get_pending', 'manual_entry'].includes(rawAction)
     ? rawAction
     : 'process_receipt') as BookkeepingSubAgentInput['action'];
 
@@ -181,6 +181,10 @@ async function executeBookkeepingSubAgent(
   const category = firstStringArg(args, ['category', 'expenseCategory', 'expense_category'])
     ?? (typeof args['value'] === 'string' ? args['value'] : undefined);
   const notes = firstStringArg(args, ['notes', 'note']);
+  const vendor = firstStringArg(args, ['vendor', 'store', 'storeName', 'store_name']);
+  const amount = typeof args['amount'] === 'number' ? args['amount'] : undefined;
+  const transactionDate = firstStringArg(args, ['transactionDate', 'transaction_date', 'date']);
+  const currency = firstStringArg(args, ['currency', 'currencyCode']);
 
   const input: BookkeepingSubAgentInput & { _context?: SubAgentCallContext } = {
     action,
@@ -188,6 +192,10 @@ async function executeBookkeepingSubAgent(
     receiptTaskId,
     category,
     notes,
+    vendor,
+    amount,
+    transactionDate,
+    currency,
     _context: context,
   };
 

@@ -3,6 +3,7 @@ import { integrationConfigured } from '@openclaw/config';
 import { integrationRepository } from '../repositories/integration.repository.js';
 import { checkDatabaseHealth } from '../db/health.js';
 import { checkRedisHealth } from '../db/redis.js';
+import { verifyGhlConnection } from '../integrations/ghl/index.js';
 
 interface IntegrationDef {
   key: string;
@@ -43,6 +44,7 @@ const INTEGRATION_DEFS: IntegrationDef[] = [
     key: 'ghl',
     label: 'GoHighLevel',
     configured: integrationConfigured.ghl,
+    liveCheck: verifyGhlConnection,
   },
   {
     key: 'google_sheets',

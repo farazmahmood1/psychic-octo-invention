@@ -44,11 +44,13 @@ export async function executeBookkeepingTask(
       return handleSetCategory(input, context);
     case 'get_pending':
       return handleGetPending(context);
+    case 'manual_entry':
+      return handleManualEntry(input, context);
     default:
       return {
         success: false,
         action: input.action,
-        summary: `Unsupported bookkeeping action: "${input.action}". Supported: process_receipt, set_category, get_pending.`,
+        summary: `Unsupported bookkeeping action: "${input.action}". Supported: process_receipt, set_category, get_pending, manual_entry.`,
         error: `Unsupported action: ${input.action}`,
       };
   }
@@ -344,6 +346,96 @@ async function handleGetPending(
     needsClarification: true,
     clarificationQuestion: `What category should this expense be filed under? Common options: ${categoryList}`,
   };
+}
+
+// ── Manual Entry ─────────────────────────────────────────────
+
+async function handleManualEntry(
+  input: BookkeepingSubAgentInput,
+  context?: {
+    conversationId?: string;
+    externalUserId?: string;
+    sourceChannel?: string;
+    sourceMessageId?: string;
+  },
+): Promise<BookkeepingSubAgentOutput> {
+  const { vendor, amount, transactionDate, category, currency, notes } = input;
+
+  // Validate required fields
+  const missing: string[] = [];
+  if (!vendor) missing.push('vendor');
+  if (amount == null) missing.push('amount');
+  if (!category) missing.push('category');
+
+  if (missing.length > 0) {
+    const categoryList = BOOKKEEPING_CATEGORIES.join(', ');
+    return {
+      success: false,
+      action: 'manual_entry',
+      summary: `Missing required fields: ${missing.join(', ')}. Please provide the vendor name, amount, and category.`,
+      error: `Missing fields: ${missing.join(', ')}`,
+      needsClarification: true,
+      clarificationQuestion: missing.includes('category')
+        ? `Please provide the missing details. Common categories: ${categoryList}`
+        : `Please provide: ${missing.join(', ')}`,
+    };
+  }
+
+  // Validate amount
+  const amountResult = validateAmount(amount);
+  if (!amountResult.valid) {
+    return {
+      success: false,
+      action: 'manual_entry',
+      summary: `Invalid amount: ${amountResult.error}`,
+      error: amountResult.error,
+    };
+  }
+
+  // Validate category
+  const catResult = validateCategory(category);
+  if (!catResult.valid) {
+    return {
+      success: false,
+      action: 'manual_entry',
+      summary: catResult.error,
+      error: catResult.error,
+    };
+  }
+
+  // Create a receipt extraction record for manual entries too (for audit trail)
+  const idempotencyKey = `manual:${context?.sourceMessageId ?? Date.now()}`;
+  const record = await receiptExtractionRepository.create({
+    conversationId: context?.conversationId,
+    externalUserId: context?.externalUserId,
+    sourceChannel: (context?.sourceChannel ?? 'telegram') as 'telegram' | 'email' | 'admin_portal',
+    sourceMessageId: context?.sourceMessageId,
+    idempotencyKey,
+    fileUrl: undefined,
+    fileType: 'manual',
+  });
+
+  const extractedData: ReceiptExtractionData = {
+    vendor: vendor!,
+    transactionDate: transactionDate ?? new Date().toISOString().split('T')[0]!,
+    amount: amountResult.value,
+    currency: currency ?? 'USD',
+    tax: null,
+    suggestedCategory: catResult.value,
+    confidence: 1.0,
+    notes: notes ?? null,
+  };
+
+  // Persist extraction data
+  await receiptExtractionRepository.updateExtraction(record.id, {
+    extractedData: extractedData as any,
+    confidence: 1.0,
+    status: 'extracted',
+  });
+  await receiptExtractionRepository.setCategory(record.id, catResult.value);
+
+  // Go straight to finalize and append
+  return await finalizeAndAppend(record.id, extractedData, catResult.value, context);
 }
 
 // ── Finalize & Append ────────────────────────────────────────

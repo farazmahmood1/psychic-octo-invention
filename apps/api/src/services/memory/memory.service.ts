@@ -202,6 +202,78 @@ function extractFacts(
     });
   }
 
+  // Pattern: "my favorite X is Y" / "my fav X is Y"
+  for (const match of text.matchAll(
+    new RegExp(String.raw`\bmy\s+(?:fav(?:ou?rite)?)\s+(.+?)\s+is\s+(.+?)${FACT_BOUNDARY}`, 'gi'),
+  )) {
+    const attr = cleanCapturedValue(match[1] ?? '');
+    const val = cleanCapturedValue(match[2] ?? '');
+    if (attr && val && attr.length >= 2 && val.length >= 2) {
+      const key = `favorite:${normalizeKey(attr.slice(0, 30))}`;
+      facts.push({
+        namespace: `user:${userId}`,
+        subjectKey: key,
+        value: { attribute: attr, favoriteValue: val },
+        summary: `User's favorite ${attr} is ${val}`,
+        importance: 0.7,
+        sourceConversationId: conversationId,
+        sourceMessageId: messageId,
+      });
+    }
+  }
+
+  // Pattern: "my X is Y" for common personal attributes
+  // (birthday, age, nickname, job title, etc.)
+  const PERSONAL_ATTRS = new Set([
+    'birthday', 'age', 'nickname', 'job', 'job title', 'role', 'title',
+    'address', 'city', 'color', 'colour', 'hobby', 'pet', 'dog', 'cat',
+    'car', 'website', 'timezone', 'time zone', 'language', 'budget',
+    'goal', 'anniversary', 'spouse', 'partner', 'wife', 'husband',
+  ]);
+  for (const match of text.matchAll(
+    new RegExp(String.raw`\bmy\s+([a-z][a-z\s]{0,20}?)\s+is\s+(.+?)${FACT_BOUNDARY}`, 'gi'),
+  )) {
+    const attr = cleanCapturedValue(match[1] ?? '').toLowerCase();
+    const val = cleanCapturedValue(match[2] ?? '');
+    if (attr && val && PERSONAL_ATTRS.has(attr) && val.length >= 1) {
+      const key = `personal:${normalizeKey(attr)}`;
+      // Skip if a more specific pattern already captured this
+      if (!facts.some((f) => f.subjectKey === key)) {
+        facts.push({
+          namespace: `user:${userId}`,
+          subjectKey: key,
+          value: { attribute: attr, personalValue: val },
+          summary: `User's ${attr} is ${val}`,
+          importance: 0.7,
+          sourceConversationId: conversationId,
+          sourceMessageId: messageId,
+        });
+      }
+    }
+  }
+
+  // Pattern: explicit memory requests — "remember that X", "please remember X",
+  // "don't forget X", "keep in mind X"
+  for (const remembered of extractMatches(
+    text,
+    new RegExp(
+      String.raw`\b(?:(?:please\s+)?remember(?:\s+that)?|don'?t\s+forget(?:\s+that)?|keep\s+in\s+mind(?:\s+that)?)\s+(.+?)${FACT_BOUNDARY}`,
+      'gi',
+    ),
+    sanitizePreference,
+  )) {
+    const key = `remembered:${normalizeKey(remembered.slice(0, 40))}`;
+    facts.push({
+      namespace: `user:${userId}`,
+      subjectKey: key,
+      value: { remembered },
+      summary: `User asked to remember: ${remembered}`,
+      importance: 0.8,
+      sourceConversationId: conversationId,
+      sourceMessageId: messageId,
+    });
+  }
+
   // Pattern: Phone/email explicitly shared
   const phoneMatch = text.match(/\b(\+?\d[\d\s\-()]{7,18}\d)\b/);
   if (phoneMatch?.[1]) {
