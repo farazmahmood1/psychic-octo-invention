@@ -44,8 +44,10 @@ const envSchema = z.object({
   SMTP_FROM: z.string().min(1).optional(),
 
   // GHL (optional — degraded without CRM)
-  GHL_API_BASE_URL: z.string().url().default('https://rest.gohighlevel.com/v1'),
+  GHL_API_BASE_URL: z.string().url().default('https://services.leadconnectorhq.com'),
   GHL_API_TOKEN: z.string().min(1).optional(),
+  GHL_LOCATION_ID: z.string().min(1).optional(),
+  GHL_API_VERSION: z.string().default('2021-07-28'),
 
   // Google Sheets (optional — degraded without bookkeeping)
   GOOGLE_SERVICE_ACCOUNT_JSON: z.string().min(1).optional(),
@@ -116,6 +118,6 @@ export const integrationConfigured = {
     hasConfiguredValue(env.INBOUND_EMAIL_WEBHOOK_SECRET)
     || (hasConfiguredValue(env.RESEND_API_KEY) && hasConfiguredValue(env.RESEND_WEBHOOK_SECRET))
   ),
-  ghl: () => hasConfiguredValue(env.GHL_API_TOKEN),
+  ghl: () => hasConfiguredValue(env.GHL_API_TOKEN) && hasConfiguredValue(env.GHL_LOCATION_ID),
   googleSheets: () => !!env.GOOGLE_SERVICE_ACCOUNT_JSON && !!env.GOOGLE_SHEETS_BOOKKEEPING_SPREADSHEET_ID,
 } as const;

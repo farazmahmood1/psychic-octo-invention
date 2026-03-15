@@ -89,7 +89,15 @@ export interface GhlApiContactResponse {
 
 export interface GhlApiSearchResponse {
   contacts: GhlContact[];
-  total: number;
+  /** v1 returns total at top level */
+  total?: number;
+  /** v2 returns total inside meta */
+  meta?: {
+    total: number;
+    currentPage?: number;
+    nextPage?: number;
+    previousPage?: number;
+  };
 }
 
 // ── GHL Tool Definitions ──────────────────────────────────

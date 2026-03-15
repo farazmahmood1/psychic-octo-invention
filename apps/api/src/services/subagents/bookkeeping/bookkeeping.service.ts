@@ -411,6 +411,7 @@ async function handleManualEntry(
     sourceChannel: (context?.sourceChannel ?? 'telegram') as 'telegram' | 'email' | 'admin_portal',
     sourceMessageId: context?.sourceMessageId,
     idempotencyKey,
+    fileName: vendor!,
     fileUrl: undefined,
     fileType: 'manual',
   });

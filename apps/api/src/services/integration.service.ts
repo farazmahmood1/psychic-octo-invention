@@ -4,6 +4,7 @@ import { integrationRepository } from '../repositories/integration.repository.js
 import { checkDatabaseHealth } from '../db/health.js';
 import { checkRedisHealth } from '../db/redis.js';
 import { verifyGhlConnection } from '../integrations/ghl/index.js';
+import { verifySheetsConnection } from '../integrations/google/index.js';
 
 interface IntegrationDef {
   key: string;
@@ -50,6 +51,7 @@ const INTEGRATION_DEFS: IntegrationDef[] = [
     key: 'google_sheets',
     label: 'Google Sheets',
     configured: integrationConfigured.googleSheets,
+    liveCheck: verifySheetsConnection,
   },
 ];
 

@@ -13,7 +13,12 @@
       "Bash(npx tsx -e \":*)",
       "Bash(npx tsx:*)",
       "Bash(python -c \"import sys,json; data=json.load\\(sys.stdin\\); print\\(data[''''tunnels''''][0][''''public_url'''']\\)\")",
-      "Bash(npm run:*)"
+      "Bash(npm run:*)",
+      "Bash(wmic process:*)",
+      "Read(//d/Software Development/open-claw-II/openclaw-admin-system/$HOME/AppData/Local/ngrok/**)",
+      "Read(//d/Software Development/open-claw-II/openclaw-admin-system/$HOME/.ngrok2/**)",
+      "Bash(npx turbo:*)",
+      "Bash(node -e \":*)"
     ]
   }
 }

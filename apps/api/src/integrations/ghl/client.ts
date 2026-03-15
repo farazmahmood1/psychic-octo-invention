@@ -13,12 +13,12 @@ const MAX_RETRIES = 2;
  * Low-level GoHighLevel CRM API client.
  * Handles HTTP calls, retries on transient errors, and timeout management.
  *
- * GHL v1 REST API:
- * - GET  /contacts/lookup?email=...&phone=...
+ * GHL v2 API (services.leadconnectorhq.com):
+ * - GET  /contacts/?locationId=...&query=...
  * - GET  /contacts/{id}
  * - PUT  /contacts/{id}
  * - POST /contacts/
- * - GET  /contacts/?query=...
+ * - GET  /contacts/lookup?locationId=...&email=...&phone=...
  */
 
 async function callApi<T>(
@@ -43,6 +43,7 @@ async function callApi<T>(
       const headers: Record<string, string> = {
         Authorization: `Bearer ${token}`,
         'Content-Type': 'application/json',
+        'Version': env.GHL_API_VERSION ?? '2021-07-28',
       };
 
       const res = await fetch(url, {
@@ -125,18 +126,23 @@ export class GhlApiError extends Error {
 
 /**
  * Search contacts by name, email, or phone.
- * Uses the GHL v1 contacts query parameter.
+ * Uses the GHL v2 contacts query parameter with locationId.
  */
 export async function searchContacts(query: string): Promise<GhlContactSearchResult & { latencyMs: number }> {
+  const locationId = env.GHL_LOCATION_ID?.trim();
+  if (!locationId) {
+    throw new GhlApiError('GHL_LOCATION_ID is not configured', 503, 0);
+  }
+
   const encodedQuery = encodeURIComponent(query);
   const { data, latencyMs } = await callApi<GhlApiSearchResponse>(
     'GET',
-    `/contacts/?query=${encodedQuery}&limit=10`,
+    `/contacts/?locationId=${locationId}&query=${encodedQuery}&limit=10`,
   );
 
   return {
     contacts: data.contacts ?? [],
-    total: data.total ?? 0,
+    total: data.meta?.total ?? data.total ?? 0,
     latencyMs,
   };
 }
@@ -172,17 +178,22 @@ export async function updateContact(
 
 /**
  * Lookup a contact by email or phone (exact match).
- * GHL provides a dedicated lookup endpoint.
+ * GHL v2 lookup endpoint requires locationId.
  */
 export async function lookupContact(params: {
   email?: string;
   phone?: string;
 }): Promise<GhlContactSearchResult & { latencyMs: number }> {
-  const queryParts: string[] = [];
+  const locationId = env.GHL_LOCATION_ID?.trim();
+  if (!locationId) {
+    throw new GhlApiError('GHL_LOCATION_ID is not configured', 503, 0);
+  }
+
+  const queryParts: string[] = [`locationId=${locationId}`];
   if (params.email) queryParts.push(`email=${encodeURIComponent(params.email)}`);
   if (params.phone) queryParts.push(`phone=${encodeURIComponent(params.phone)}`);
 
-  if (queryParts.length === 0) {
+  if (queryParts.length <= 1) {
     return { contacts: [], total: 0, latencyMs: 0 };
   }
 
@@ -194,11 +205,11 @@ export async function lookupContact(params: {
 
     return {
       contacts: data.contacts ?? [],
-      total: data.total ?? 0,
+      total: data.meta?.total ?? data.total ?? 0,
       latencyMs,
     };
   } catch (err) {
-    // Lookup endpoint may not exist in all GHL versions — fall back to search
+    // Lookup endpoint may not exist — fall back to search
     if (err instanceof GhlApiError && err.statusCode === 404) {
       logger.debug('GHL lookup endpoint not available, falling back to search');
       const query = params.email ?? params.phone ?? '';
@@ -213,7 +224,12 @@ export async function lookupContact(params: {
  */
 export async function verifyGhlConnection(): Promise<boolean> {
   try {
-    await callApi('GET', '/contacts/?limit=1');
+    const locationId = env.GHL_LOCATION_ID?.trim();
+    if (!locationId) {
+      logger.warn('GHL_LOCATION_ID is not configured — cannot verify connection');
+      return false;
+    }
+    await callApi('GET', `/contacts/?locationId=${locationId}&limit=1`);
     return true;
   } catch (err) {
     logger.warn({ err }, 'GHL API connection verification failed');

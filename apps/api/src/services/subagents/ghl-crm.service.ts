@@ -383,10 +383,39 @@ async function handleGhlError(
     };
   }
 
+  // Provide specific feedback based on the HTTP status code
+  if (isApiError) {
+    const status = (err as GhlApiError).statusCode;
+    if (status === 401 || status === 403) {
+      return {
+        success: false,
+        action,
+        summary: 'The CRM API key is invalid or lacks the required permissions. Please check the GHL_API_TOKEN in settings.',
+        error: `GHL auth error (${status}): ${error.message}`,
+      };
+    }
+    if (status === 404) {
+      return {
+        success: false,
+        action,
+        summary: 'The requested CRM resource was not found. The contact may not exist, or the API endpoint is incorrect.',
+        error: `GHL not found (404): ${error.message}`,
+      };
+    }
+    if (status >= 500) {
+      return {
+        success: false,
+        action,
+        summary: 'The GoHighLevel API is experiencing server issues. Please try again later.',
+        error: `GHL server error (${status}): ${error.message}`,
+      };
+    }
+  }
+
   return {
     success: false,
     action,
-    summary: 'An error occurred while communicating with the CRM. Please try again.',
+    summary: `CRM operation failed: ${error.message.slice(0, 200)}`,
     error: error.message,
   };
 }
