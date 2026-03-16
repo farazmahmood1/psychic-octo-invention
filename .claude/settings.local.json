@@ -21,7 +21,8 @@
       "Bash(node -e \":*)",
       "Bash(node --import tsx/esm test-integrations.ts)",
       "Bash(find 'd:\\\\Software Development\\\\open-claw-II\\\\openclaw-admin-system' -type f \\\\\\(-name *.ts -o -name *.js -o -name *.tsx -o -name *.jsx \\\\\\))",
-      "Bash(npx jest:*)"
+      "Bash(npx jest:*)",
+      "Bash(npx dotenv:*)"
     ]
   }
 }

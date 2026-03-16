@@ -36,7 +36,9 @@ export function normalizeInboundEmail(
   }
 
   // Must have at least one recipient
-  const to = (payload.to ?? []).map(normalizeEmail).filter(Boolean) as string[];
+  // Coerce to array — some providers send a single string instead of string[]
+  const rawTo = Array.isArray(payload.to) ? payload.to : payload.to ? [payload.to] : [];
+  const to = rawTo.map(normalizeEmail).filter(Boolean) as string[];
   if (to.length === 0) {
     logger.warn({ from }, 'Email normalizer: no valid recipients');
     return null;
@@ -79,7 +81,8 @@ export function normalizeInboundEmail(
   // Parse timestamp
   const timestamp = parseTimestamp(payload.timestamp);
 
-  const cc = (payload.cc ?? []).map(normalizeEmail).filter(Boolean) as string[];
+  const rawCc = Array.isArray(payload.cc) ? payload.cc : payload.cc ? [payload.cc] : [];
+  const cc = rawCc.map(normalizeEmail).filter(Boolean) as string[];
 
   return {
     channel: 'email',

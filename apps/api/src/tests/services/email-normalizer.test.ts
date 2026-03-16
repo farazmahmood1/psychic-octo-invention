@@ -27,6 +27,26 @@ describe('Email Normalizer - T2 threading behavior', () => {
     expect(event!.text.toLowerCase()).toContain('thread history');
   });
 
+  it('handles payload.to as a single string instead of an array', () => {
+    const payload = createInboundEmailPayload({
+      to: 'support@openclaw.dev' as unknown as string[],
+    });
+    const event = normalizeInboundEmail(payload);
+
+    expect(event).not.toBeNull();
+    expect(event!.metadata['emailTo']).toEqual(['support@openclaw.dev']);
+  });
+
+  it('handles payload.cc as a single string instead of an array', () => {
+    const payload = createInboundEmailPayload({
+      cc: 'boss@example.com' as unknown as string[],
+    });
+    const event = normalizeInboundEmail(payload);
+
+    expect(event).not.toBeNull();
+    expect(event!.metadata['emailCc']).toEqual(['boss@example.com']);
+  });
+
   it('falls back to deterministic thread ID when message-id headers are missing', () => {
     const payload = createInboundEmailPayload({
       messageId: undefined,
