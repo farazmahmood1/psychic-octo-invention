@@ -43,23 +43,31 @@ export async function processTelegramUpdate(update: TelegramUpdate): Promise<voi
       logger.warn({ err, chatId }, 'Failed to persist Telegram chat mapping');
     });
 
-    if (result.reply) {
-      const inboundTgMessageId = (event.metadata['telegramMessageId'] as number) ?? undefined;
+    const replyText = result.reply?.trim()
+      || "I'm sorry, I couldn't generate a response. Please try again.";
 
-      const deliveryResult = await deliverToTelegram(
-        result.conversationId,
-        result.messageId,
-        result.reply,
-        chatId,
-        inboundTgMessageId,
+    const inboundTgMessageId = (event.metadata['telegramMessageId'] as number) ?? undefined;
+
+    if (!result.reply?.trim()) {
+      logger.warn(
+        { conversationId: result.conversationId, warnings: result.warnings },
+        'Telegram orchestration returned empty reply, using fallback',
       );
+    }
 
-      if (!deliveryResult.success) {
-        logger.error(
-          { conversationId: result.conversationId, error: deliveryResult.error },
-          'Telegram reply delivery failed',
-        );
-      }
+    const deliveryResult = await deliverToTelegram(
+      result.conversationId,
+      result.messageId,
+      replyText,
+      chatId,
+      inboundTgMessageId,
+    );
+
+    if (!deliveryResult.success) {
+      logger.error(
+        { conversationId: result.conversationId, error: deliveryResult.error },
+        'Telegram reply delivery failed',
+      );
     }
 
     if (result.warnings.length > 0) {

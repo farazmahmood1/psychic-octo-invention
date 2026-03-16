@@ -38,11 +38,11 @@ async function handleTelegramWebhook(req: Request, res: Response): Promise<void>
     return;
   }
 
-  try {
-    await processTelegramUpdate(update);
-    res.status(HTTP_STATUS.OK).json({ ok: true });
-  } catch (err) {
+  // Respond immediately so Telegram doesn't timeout (especially on free-tier cold starts)
+  res.status(HTTP_STATUS.OK).json({ ok: true });
+
+  // Process asynchronously
+  processTelegramUpdate(update).catch((err) => {
     logger.error({ err, updateId: update.update_id }, 'Telegram webhook processing error');
-    res.status(HTTP_STATUS.OK).json({ ok: true });
-  }
+  });
 }
