@@ -92,12 +92,14 @@ async function handleSearchContact(input: GhlSubAgentInput): Promise<GhlSubAgent
   try {
     const result = await searchContacts(query);
 
-    await ghlActionLogRepository.create({
+    ghlActionLogRepository.create({
       actionType: 'search_contact',
       requestPayload: { action: 'search', query },
       responsePayload: { total: result.total, contactIds: result.contacts.map((c) => c.id) },
       success: true,
       latencyMs: result.latencyMs,
+    }).catch((logErr) => {
+      logger.warn({ err: logErr }, 'Failed to log GHL search action');
     });
 
     if (result.total === 0) {
@@ -157,13 +159,15 @@ async function handleGetContact(input: GhlSubAgentInput): Promise<GhlSubAgentOut
     const contact = await getContact(contactId);
     const latencyMs = contact._latencyMs;
 
-    await ghlActionLogRepository.create({
+    ghlActionLogRepository.create({
       actionType: 'get_contact',
       contactId,
       requestPayload: { action: 'get', contactId },
       responsePayload: { contactId: contact.id },
       success: true,
       latencyMs,
+    }).catch((logErr) => {
+      logger.warn({ err: logErr }, 'Failed to log GHL get_contact action');
     });
 
     return {
@@ -306,8 +310,8 @@ async function handleUpdateContact(input: GhlSubAgentInput): Promise<GhlSubAgent
     // Execute the update
     const result = await updateContact(contactId, actualUpdates);
 
-    // Log to GHL action log
-    await ghlActionLogRepository.create({
+    // Log to GHL action log (non-blocking)
+    ghlActionLogRepository.create({
       actionType: 'update_contact',
       contactId,
       requestPayload: { updates: actualUpdates } as any,
@@ -315,6 +319,8 @@ async function handleUpdateContact(input: GhlSubAgentInput): Promise<GhlSubAgent
       statusCode: result.statusCode,
       success: true,
       latencyMs: result.latencyMs,
+    }).catch((logErr) => {
+      logger.warn({ err: logErr }, 'Failed to log GHL update_contact action');
     });
 
     // Build confirmation message
