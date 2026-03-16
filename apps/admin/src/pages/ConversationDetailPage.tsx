@@ -100,32 +100,32 @@ function MessageBubble({ message }: { message: MessageRecord }) {
           {!isInbound && (
             <div className="mt-2 flex flex-wrap items-center gap-1.5 text-[10px] opacity-85">
               {tier && (
-                <Badge variant="outline" className="h-4 px-1.5 py-0 text-[10px]">
+                <Badge variant="outline" className="h-4 px-1.5 py-0 text-[10px]" style={{ color: 'inherit', borderColor: 'rgba(255,255,255,0.3)' }}>
                   {tier}
                 </Badge>
               )}
               {model && (
-                <Badge variant="outline" className="h-4 px-1.5 py-0 text-[10px]">
+                <Badge variant="outline" className="h-4 px-1.5 py-0 text-[10px]" style={{ color: 'inherit', borderColor: 'rgba(200, 67, 67, 0.3)' }}>
                   {model}
                 </Badge>
               )}
               {totalTokens != null && (
-                <Badge variant="outline" className="h-4 px-1.5 py-0 text-[10px]">
+                <Badge variant="outline" className="h-4 px-1.5 py-0 text-[10px]" style={{ color: 'inherit', borderColor: 'rgba(255,255,255,0.3)' }}>
                   {totalTokens.toLocaleString()} tokens
                 </Badge>
               )}
               {toolCallsRequested != null && toolCallsRequested > 0 && (
-                <Badge variant="outline" className="h-4 px-1.5 py-0 text-[10px]">
+                <Badge variant="outline" className="h-4 px-1.5 py-0 text-[10px]" style={{ color: 'inherit', borderColor: 'rgba(255,255,255,0.3)' }}>
                   {toolCallsRequested} tool call{toolCallsRequested === 1 ? '' : 's'}
                 </Badge>
               )}
               {retrievedCount != null && retrievedCount > 0 && (
-                <Badge variant="outline" className="h-4 px-1.5 py-0 text-[10px]">
+                <Badge variant="outline" className="h-4 px-1.5 py-0 text-[10px]" style={{ color: 'inherit', borderColor: 'rgba(255,255,255,0.3)' }}>
                   memory +{retrievedCount}
                 </Badge>
               )}
               {writtenCount != null && writtenCount > 0 && (
-                <Badge variant="outline" className="h-4 px-1.5 py-0 text-[10px]">
+                <Badge variant="outline" className="h-4 px-1.5 py-0 text-[10px]" style={{ color: 'inherit', borderColor: 'rgba(255,255,255,0.3)' }}>
                   saved {writtenCount}
                 </Badge>
               )}

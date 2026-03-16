@@ -42,8 +42,10 @@ export function normalizeMailboxAddress(value: string | null | undefined): strin
   return normalizedCandidate.toLowerCase();
 }
 
-export function normalizeMailboxList(values: string[] | null | undefined): string[] {
-  return (values ?? [])
+export function normalizeMailboxList(values: string | string[] | null | undefined): string[] {
+  // Coerce to array — some providers send a single string instead of string[]
+  const list = Array.isArray(values) ? values : values ? [values] : [];
+  return list
     .map((value) => parseMailbox(value).address)
     .filter((value): value is string => Boolean(value));
 }
