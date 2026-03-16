@@ -337,9 +337,13 @@ async function handleUpdateContact(input: GhlSubAgentInput): Promise<GhlSubAgent
 // ── Helpers ────────────────────────────────────────────────
 
 function formatContactName(contact: GhlContact): string {
-  if (contact.firstName && contact.lastName) return `${contact.firstName} ${contact.lastName}`;
+  // GHL search returns lowercase firstName/lastName but proper case in
+  // firstNameRaw/lastNameRaw. Prefer the raw variants when available.
+  const first = contact.firstNameRaw ?? contact.firstName;
+  const last = contact.lastNameRaw ?? contact.lastName;
+  if (first && last) return `${first} ${last}`;
   if (contact.name) return contact.name;
-  if (contact.firstName) return contact.firstName;
+  if (first) return first;
   return contact.email ?? contact.phone ?? contact.id;
 }
 

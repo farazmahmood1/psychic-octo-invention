@@ -209,8 +209,10 @@ export async function lookupContact(params: {
       latencyMs,
     };
   } catch (err) {
-    // Lookup endpoint may not exist — fall back to search
-    if (err instanceof GhlApiError && err.statusCode === 404) {
+    // Lookup endpoint may not exist in GHL v2 — fall back to search.
+    // v2 returns 400 ("Contact with id lookup not found") treating "lookup"
+    // as a contact ID, so we catch both 400 and 404.
+    if (err instanceof GhlApiError && (err.statusCode === 404 || err.statusCode === 400)) {
       logger.debug('GHL lookup endpoint not available, falling back to search');
       const query = params.email ?? params.phone ?? '';
       return searchContacts(query);

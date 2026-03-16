@@ -9,9 +9,14 @@ export interface GhlContact {
   id: string;
   firstName?: string;
   lastName?: string;
+  /** Proper-case first name (GHL search returns lowercase firstName). */
+  firstNameRaw?: string;
+  /** Proper-case last name (GHL search returns lowercase lastName). */
+  lastNameRaw?: string;
   name?: string;
   email?: string;
   phone?: string;
+  companyName?: string;
   address1?: string;
   city?: string;
   state?: string;

@@ -18,7 +18,10 @@
       "Read(//d/Software Development/open-claw-II/openclaw-admin-system/$HOME/AppData/Local/ngrok/**)",
       "Read(//d/Software Development/open-claw-II/openclaw-admin-system/$HOME/.ngrok2/**)",
       "Bash(npx turbo:*)",
-      "Bash(node -e \":*)"
+      "Bash(node -e \":*)",
+      "Bash(node --import tsx/esm test-integrations.ts)",
+      "Bash(find 'd:\\\\Software Development\\\\open-claw-II\\\\openclaw-admin-system' -type f \\\\\\(-name *.ts -o -name *.js -o -name *.tsx -o -name *.jsx \\\\\\))",
+      "Bash(npx jest:*)"
     ]
   }
 }
