@@ -144,7 +144,12 @@ function extractNameFromEmail(email: string): string {
 
 /**
  * Resolve a thread ID from email headers.
- * Priority: References chain → In-Reply-To → Message-ID → generated
+ * Priority: References chain → In-Reply-To → subject-based match → Message-ID → generated
+ *
+ * Many email providers (Resend, SendGrid) strip threading headers from inbound
+ * webhook payloads. When headers are absent, fall back to a deterministic
+ * subject-based thread ID so that replies with "Re: <subject>" map to the
+ * original conversation.
  */
 function resolveThreadId(payload: InboundEmailPayload): string {
   // Use the first message-id in the References chain (root of thread)
@@ -156,12 +161,34 @@ function resolveThreadId(payload: InboundEmailPayload): string {
   // Fall back to In-Reply-To
   if (payload.inReplyTo) return payload.inReplyTo;
 
+  // Fall back to subject-based thread matching.
+  // Strip "Re:", "Fwd:", etc. prefixes so replies group with the original.
+  const subject = payload.subject?.trim() ?? '';
+  if (subject) {
+    const normalizedSubject = normalizeSubjectForThreading(subject);
+    // Use only normalized subject as the key so both sender and receiver
+    // replies land in the same conversation thread.
+    const key = `subject:${normalizedSubject}`;
+    return `generated:${simpleHash(key)}`;
+  }
+
   // Fall back to this message's own ID (new thread)
   if (payload.messageId) return payload.messageId;
 
   // Generate a deterministic thread ID from sender + subject
   const key = `${payload.from}:${payload.subject ?? ''}`.toLowerCase();
   return `generated:${simpleHash(key)}`;
+}
+
+/**
+ * Strip common reply/forward prefixes and normalize whitespace
+ * so that "Re: Re: Fwd: Hello" → "hello".
+ */
+function normalizeSubjectForThreading(subject: string): string {
+  return subject
+    .replace(/^(\s*(re|fwd?|fw)\s*:\s*)+/i, '')
+    .trim()
+    .toLowerCase();
 }
 
 function simpleHash(str: string): string {

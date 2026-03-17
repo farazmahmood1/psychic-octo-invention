@@ -17,6 +17,7 @@ import { processSubAgentCalls, isSubAgentToolCall } from './sub-agent-dispatcher
 import { executeExternalToolCalls } from './external-tool-executor.js';
 import { getRoutingSettings } from '../services/settings.service.js';
 import { usageRepository } from '../repositories/usage.repository.js';
+import { maybeGenerateTitle, maybeCloseConversation } from './post-processing.js';
 
 /**
  * Central execution pipeline for processing one inbound event.
@@ -336,7 +337,15 @@ export async function executeEvent(event: InboundEvent): Promise<ExecutionResult
     logger.warn({ err, replyMessageId }, 'Failed to update message runtime metadata');
   }
 
-  // 12. Return result
+  // 12. Post-processing: title generation + close detection (fire-and-forget)
+  maybeGenerateTitle(conversationId, event.text, finalReply).catch((err) => {
+    logger.warn({ err, conversationId }, 'Post-processing: title generation failed');
+  });
+  maybeCloseConversation(conversationId, finalReply).catch((err) => {
+    logger.warn({ err, conversationId }, 'Post-processing: close detection failed');
+  });
+
+  // 13. Return result
   return {
     reply: finalReply,
     memoryWrites,

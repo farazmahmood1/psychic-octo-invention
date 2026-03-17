@@ -23,18 +23,21 @@ function dateRangeParams(range: string) {
   return { dateFrom: from.toISOString(), dateTo: now.toISOString() };
 }
 
+const CHART_HEIGHT = 200;
+const CHART_PADDING = { top: 20, right: 16, bottom: 30, left: 50 };
+
 function TimeseriesChart({ buckets, loading }: { buckets: UsageTimeseriesBucket[]; loading: boolean }) {
   if (loading) {
     return (
-      <div className="flex h-48 items-center justify-center">
-        <div className="h-32 w-full animate-pulse rounded bg-muted" />
+      <div className="flex h-64 items-center justify-center">
+        <div className="h-48 w-full animate-pulse rounded bg-muted" />
       </div>
     );
   }
 
   if (buckets.length === 0) {
     return (
-      <div className="flex h-48 items-center justify-center text-sm text-muted-foreground">
+      <div className="flex h-64 items-center justify-center text-sm text-muted-foreground">
         No usage data in this period.
       </div>
     );
@@ -43,50 +46,162 @@ function TimeseriesChart({ buckets, loading }: { buckets: UsageTimeseriesBucket[
   const maxCost = Math.max(...buckets.map((b) => b.costUsd), 0.001);
   const maxRequests = Math.max(...buckets.map((b) => b.requests), 1);
 
+  const innerHeight = CHART_HEIGHT - CHART_PADDING.top - CHART_PADDING.bottom;
+
+  function buildPath(values: number[], maxVal: number): string {
+    if (values.length === 0) return '';
+    const step = 100 / Math.max(values.length - 1, 1);
+    return values
+      .map((v, i) => {
+        const x = i * step;
+        const y = 100 - (v / maxVal) * 100;
+        return `${i === 0 ? 'M' : 'L'} ${x} ${y}`;
+      })
+      .join(' ');
+  }
+
+  function buildAreaPath(values: number[], maxVal: number): string {
+    if (values.length === 0) return '';
+    const linePath = buildPath(values, maxVal);
+    const step = 100 / Math.max(values.length - 1, 1);
+    const lastX = (values.length - 1) * step;
+    return `${linePath} L ${lastX} 100 L 0 100 Z`;
+  }
+
+  const costValues = buckets.map((b) => b.costUsd);
+  const requestValues = buckets.map((b) => b.requests);
+
+  const costLinePath = buildPath(costValues, maxCost);
+  const costAreaPath = buildAreaPath(costValues, maxCost);
+  const reqLinePath = buildPath(requestValues, maxRequests);
+  const reqAreaPath = buildAreaPath(requestValues, maxRequests);
+
+  // Y-axis ticks (5 ticks)
+  const costTicks = Array.from({ length: 5 }, (_, i) => (maxCost / 4) * i);
+  const reqTicks = Array.from({ length: 5 }, (_, i) => Math.round((maxRequests / 4) * i));
+
+  // X-axis labels — show ~5 evenly spaced dates
+  const labelCount = Math.min(buckets.length, 5);
+  const xLabels = Array.from({ length: labelCount }, (_, i) => {
+    const idx = Math.round((i / Math.max(labelCount - 1, 1)) * (buckets.length - 1));
+    return { idx, label: new Date(buckets[idx]!.period).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) };
+  });
+
   return (
-    <div className="space-y-2">
-      {/* Cost bars */}
-      <div className="flex items-end gap-1" style={{ height: 120 }}>
-        {buckets.map((b, i) => {
-          const height = Math.max((b.costUsd / maxCost) * 100, 2);
-          return (
-            <div
-              key={i}
-              className="group relative flex-1 cursor-default"
-              title={`${new Date(b.period).toLocaleDateString()}\n$${b.costUsd.toFixed(4)} | ${b.requests} reqs | ${b.tokens.toLocaleString()} tokens`}
-            >
-              <div
-                className="w-full rounded-t bg-primary transition-colors hover:bg-primary/80"
-                style={{ height: `${height}%` }}
-              />
-            </div>
-          );
-        })}
+    <div className="space-y-8">
+      {/* Cost line chart */}
+      <div>
+        <p className="mb-2 text-xs font-medium text-muted-foreground">Cost per day (USD)</p>
+        <div className="relative" style={{ height: CHART_HEIGHT }}>
+          {/* Y-axis labels */}
+          <div className="absolute left-0 top-0 flex h-full flex-col justify-between pr-2 text-right" style={{ width: CHART_PADDING.left - 4 }}>
+            {[...costTicks].reverse().map((tick, i) => (
+              <span key={i} className="text-[10px] text-muted-foreground">${tick.toFixed(3)}</span>
+            ))}
+          </div>
+
+          {/* Chart area */}
+          <div className="absolute" style={{ left: CHART_PADDING.left, right: CHART_PADDING.right, top: CHART_PADDING.top, height: innerHeight }}>
+            {/* Grid lines */}
+            <svg className="absolute inset-0 h-full w-full" preserveAspectRatio="none">
+              {costTicks.map((_, i) => {
+                const y = (i / (costTicks.length - 1)) * 100;
+                return <line key={i} x1="0%" y1={`${y}%`} x2="100%" y2={`${y}%`} stroke="currentColor" className="text-muted/30" strokeWidth="1" strokeDasharray="4 4" />;
+              })}
+            </svg>
+
+            {/* Line + area */}
+            <svg className="absolute inset-0 h-full w-full" viewBox="0 0 100 100" preserveAspectRatio="none">
+              <path d={costAreaPath} fill="hsl(var(--primary) / 0.1)" />
+              <path d={costLinePath} fill="none" stroke="hsl(var(--primary))" strokeWidth="2" vectorEffect="non-scaling-stroke" />
+            </svg>
+
+            {/* Hover dots */}
+            <svg className="absolute inset-0 h-full w-full" viewBox="0 0 100 100" preserveAspectRatio="none">
+              {costValues.map((v, i) => {
+                const step = 100 / Math.max(costValues.length - 1, 1);
+                const x = i * step;
+                const y = 100 - (v / maxCost) * 100;
+                return (
+                  <circle
+                    key={i}
+                    cx={x}
+                    cy={y}
+                    r="1.5"
+                    fill="hsl(var(--primary))"
+                    className="transition-all hover:r-[3]"
+                  >
+                    <title>{`${new Date(buckets[i]!.period).toLocaleDateString()}: $${v.toFixed(4)}`}</title>
+                  </circle>
+                );
+              })}
+            </svg>
+          </div>
+
+          {/* X-axis labels */}
+          <div className="absolute flex justify-between" style={{ left: CHART_PADDING.left, right: CHART_PADDING.right, bottom: 0 }}>
+            {xLabels.map(({ idx, label }) => (
+              <span key={idx} className="text-[10px] text-muted-foreground">{label}</span>
+            ))}
+          </div>
+        </div>
       </div>
-      <div className="flex justify-between text-[10px] text-muted-foreground">
-        <span>{new Date(buckets[0]!.period).toLocaleDateString()}</span>
-        <span>Cost per day (hover for details)</span>
-        <span>{new Date(buckets[buckets.length - 1]!.period).toLocaleDateString()}</span>
-      </div>
-      {/* Requests bars */}
-      <div className="mt-4">
-        <p className="mb-1 text-xs font-medium text-muted-foreground">Requests per day</p>
-        <div className="flex items-end gap-1" style={{ height: 60 }}>
-          {buckets.map((b, i) => {
-            const height = Math.max((b.requests / maxRequests) * 100, 2);
-            return (
-              <div
-                key={i}
-                className="flex-1"
-                title={`${new Date(b.period).toLocaleDateString()}: ${b.requests} requests`}
-              >
-                <div
-                  className="w-full rounded-t bg-blue-500/60 transition-colors hover:bg-blue-500/80"
-                  style={{ height: `${height}%` }}
-                />
-              </div>
-            );
-          })}
+
+      {/* Requests line chart */}
+      <div>
+        <p className="mb-2 text-xs font-medium text-muted-foreground">Requests per day</p>
+        <div className="relative" style={{ height: CHART_HEIGHT }}>
+          {/* Y-axis labels */}
+          <div className="absolute left-0 top-0 flex h-full flex-col justify-between pr-2 text-right" style={{ width: CHART_PADDING.left - 4 }}>
+            {[...reqTicks].reverse().map((tick, i) => (
+              <span key={i} className="text-[10px] text-muted-foreground">{tick}</span>
+            ))}
+          </div>
+
+          {/* Chart area */}
+          <div className="absolute" style={{ left: CHART_PADDING.left, right: CHART_PADDING.right, top: CHART_PADDING.top, height: innerHeight }}>
+            {/* Grid lines */}
+            <svg className="absolute inset-0 h-full w-full" preserveAspectRatio="none">
+              {reqTicks.map((_, i) => {
+                const y = (i / (reqTicks.length - 1)) * 100;
+                return <line key={i} x1="0%" y1={`${y}%`} x2="100%" y2={`${y}%`} stroke="currentColor" className="text-muted/30" strokeWidth="1" strokeDasharray="4 4" />;
+              })}
+            </svg>
+
+            {/* Line + area */}
+            <svg className="absolute inset-0 h-full w-full" viewBox="0 0 100 100" preserveAspectRatio="none">
+              <path d={reqAreaPath} fill="hsl(210 100% 50% / 0.08)" />
+              <path d={reqLinePath} fill="none" stroke="hsl(210 100% 50%)" strokeWidth="2" vectorEffect="non-scaling-stroke" />
+            </svg>
+
+            {/* Hover dots */}
+            <svg className="absolute inset-0 h-full w-full" viewBox="0 0 100 100" preserveAspectRatio="none">
+              {requestValues.map((v, i) => {
+                const step = 100 / Math.max(requestValues.length - 1, 1);
+                const x = i * step;
+                const y = 100 - (v / maxRequests) * 100;
+                return (
+                  <circle
+                    key={i}
+                    cx={x}
+                    cy={y}
+                    r="1.5"
+                    fill="hsl(210 100% 50%)"
+                    className="transition-all hover:r-[3]"
+                  >
+                    <title>{`${new Date(buckets[i]!.period).toLocaleDateString()}: ${v} requests`}</title>
+                  </circle>
+                );
+              })}
+            </svg>
+          </div>
+
+          {/* X-axis labels */}
+          <div className="absolute flex justify-between" style={{ left: CHART_PADDING.left, right: CHART_PADDING.right, bottom: 0 }}>
+            {xLabels.map(({ idx, label }) => (
+              <span key={idx} className="text-[10px] text-muted-foreground">{label}</span>
+            ))}
+          </div>
         </div>
       </div>
     </div>

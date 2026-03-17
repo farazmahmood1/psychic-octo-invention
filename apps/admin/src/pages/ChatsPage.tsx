@@ -23,7 +23,6 @@ const CHANNEL_OPTIONS = [
 const STATUS_OPTIONS = [
   { value: '', label: 'All statuses' },
   { value: 'active', label: 'Active' },
-  { value: 'archived', label: 'Archived' },
   { value: 'closed', label: 'Closed' },
 ];
 

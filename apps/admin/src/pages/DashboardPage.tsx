@@ -113,12 +113,12 @@ export function DashboardPage() {
                 </div>
                 <div className="flex items-center justify-between">
                   <span>Issues</span>
-                  <StatusBadge status="failed" />
+                  <StatusBadge status={integrationIssues > 0 ? 'failed' : 'completed'} />
                   <span className="font-semibold">{integrationIssues}</span>
                 </div>
                 <div className="flex items-center justify-between">
                   <span>Unconfigured</span>
-                  <StatusBadge status="pending" />
+                  <StatusBadge status={integrationUnconfigured > 0 ? 'pending' : 'completed'} />
                   <span className="font-semibold">{integrationUnconfigured}</span>
                 </div>
                 <p className="pt-2 text-xs text-muted-foreground">
