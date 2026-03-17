@@ -25,7 +25,8 @@
       "Bash(npx dotenv:*)",
       "Bash(find 'd:\\\\Software Development\\\\open-claw-II\\\\openclaw-admin-system' -type f \\\\\\(-name *example* -o -name *sample* \\\\\\))",
       "Bash(find 'd:\\\\Software Development\\\\open-claw-II\\\\openclaw-admin-system/apps/api/src' -type f \\\\\\(-name *.env* -o -name *config* \\\\\\))",
-      "Bash(find 'd:\\\\Software Development\\\\open-claw-II\\\\openclaw-admin-system' -maxdepth 3 -type f \\\\\\(-name .env* -o -name *.env \\\\\\))"
+      "Bash(find 'd:\\\\Software Development\\\\open-claw-II\\\\openclaw-admin-system' -maxdepth 3 -type f \\\\\\(-name .env* -o -name *.env \\\\\\))",
+      "Read(//d/Software Development/open-claw-II/openclaw-admin-system/**)"
     ]
   }
 }

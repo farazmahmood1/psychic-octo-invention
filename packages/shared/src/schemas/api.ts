@@ -45,6 +45,7 @@ export const conversationListQuerySchema = paginationQuerySchema.extend({
   participantExternalId: z.string().optional(),
   dateFrom: z.coerce.date().optional(),
   dateTo: z.coerce.date().optional(),
+  search: z.string().max(200).optional(),
 });
 
 export const messageListQuerySchema = paginationQuerySchema.extend({

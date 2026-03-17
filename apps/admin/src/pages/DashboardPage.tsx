@@ -4,6 +4,7 @@ import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { StatusBadge } from '@/components/status-badge';
 import { useApiQuery } from '@/hooks/use-api-query';
 import { Skeleton } from '@/components/ui/skeleton';
+import { MiniBarChart, Sparkline } from '@/components/charts';
 
 interface DashboardStats {
   data: {
@@ -31,17 +32,36 @@ interface IntegrationsResponse {
   }>;
 }
 
+interface ConversationTrendResponse {
+  data: Array<{ date: string; count: number }>;
+}
+
+interface CostTrendResponse {
+  data: Array<{ date: string; cost: number }>;
+}
+
 const EMPTY_STATS: DashboardStats = {
   data: { activeConversations: 0, messagesToday: 0, apiCostsMtd: 0, activeSkills: 0 },
 };
 
 const EMPTY_ACTIVITY: RecentActivity = { data: [] };
 const EMPTY_INTEGRATIONS: IntegrationsResponse = { data: [] };
+const EMPTY_CONV_TREND: ConversationTrendResponse = { data: [] };
+const EMPTY_COST_TREND: CostTrendResponse = { data: [] };
 
 export function DashboardPage() {
   const stats = useApiQuery<DashboardStats>('/dashboard/stats', EMPTY_STATS);
   const activity = useApiQuery<RecentActivity>('/dashboard/recent-activity', EMPTY_ACTIVITY);
   const integrations = useApiQuery<IntegrationsResponse>('/integrations/health', EMPTY_INTEGRATIONS);
+  const convTrend = useApiQuery<ConversationTrendResponse>('/dashboard/conversation-trend', EMPTY_CONV_TREND);
+  const costTrend = useApiQuery<CostTrendResponse>('/dashboard/cost-trend', EMPTY_COST_TREND);
+
+  const convTrendData = (convTrend.data?.data ?? []).map((d) => ({
+    label: d.date.slice(5), // MM-DD
+    value: d.count,
+  }));
+
+  const costSparklineData = (costTrend.data?.data ?? []).map((d) => d.cost);
 
   const s = stats.data?.data ?? EMPTY_STATS.data;
   const integrationRows = integrations.data?.data ?? [];
@@ -87,7 +107,46 @@ export function DashboardPage() {
         />
       </div>
 
-      {/* Recent activity */}
+      {/* Trend charts */}
+      <div className="grid gap-6 lg:grid-cols-2">
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base">Conversation Volume (14 days)</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {convTrend.loading ? (
+              <Skeleton className="h-[160px] w-full" />
+            ) : convTrendData.length === 0 ? (
+              <p className="py-10 text-center text-sm text-muted-foreground">No data yet.</p>
+            ) : (
+              <MiniBarChart data={convTrendData} height={160} />
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base">API Cost Trend (14 days)</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {costTrend.loading ? (
+              <Skeleton className="h-12 w-full" />
+            ) : costSparklineData.length < 2 ? (
+              <p className="py-10 text-center text-sm text-muted-foreground">Not enough data for chart.</p>
+            ) : (
+              <div className="space-y-2">
+                <Sparkline data={costSparklineData} width={500} height={80} className="w-full" />
+                <div className="flex justify-between text-xs text-muted-foreground">
+                  <span>{(costTrend.data?.data ?? [])[0]?.date.slice(5)}</span>
+                  <span>{((arr) => arr[arr.length - 1]?.date.slice(5))(costTrend.data?.data ?? [])}</span>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* System health & recent activity */}
       <div className="grid gap-6 lg:grid-cols-2">
         <Card>
           <CardHeader>

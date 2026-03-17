@@ -32,6 +32,7 @@ export class ConversationRepository extends BaseRepository {
     participantExternalId?: string;
     dateFrom?: Date;
     dateTo?: Date;
+    search?: string;
     page: number;
     pageSize: number;
   }) {
@@ -48,6 +49,12 @@ export class ConversationRepository extends BaseRepository {
         participants: {
           some: { externalId: filters.participantExternalId },
         },
+      } : {}),
+      ...(filters.search ? {
+        OR: [
+          { title: { contains: filters.search, mode: 'insensitive' as const } },
+          { messages: { some: { content: { contains: filters.search, mode: 'insensitive' as const } } } },
+        ],
       } : {}),
     };
 

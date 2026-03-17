@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react';
 import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/lib/auth-context';
 import {
@@ -13,9 +14,18 @@ import {
   Receipt,
   ShieldAlert,
   Brain,
+  Store,
+  Menu,
+  X,
+  Sun,
+  Moon,
+  Monitor,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { useRealtime } from '@/lib/realtime-context';
+import { useTheme } from '@/lib/theme-context';
+import { NotificationListener } from '@/components/notification-listener';
 
 interface NavItem {
   to: string;
@@ -42,6 +52,7 @@ const navItems: NavItem[] = [
   { to: '/dashboard/audit', label: 'Audit Log', icon: Shield, minRole: 'admin' },
   { to: '/dashboard/security', label: 'Security', icon: ShieldAlert, minRole: 'admin' },
   { to: '/dashboard/integrations', label: 'Integrations', icon: Plug, minRole: 'admin' },
+  { to: '/dashboard/marketplace', label: 'Marketplace', icon: Store, minRole: 'admin' },
   { to: '/dashboard/settings', label: 'Settings', icon: Settings },
 ];
 
@@ -63,6 +74,7 @@ function getPageTitle(pathname: string): string {
     bookkeeping: 'Bookkeeping',
     memory: 'Memory',
     security: 'Security',
+    marketplace: 'Marketplace',
   };
   // Handle conversation detail pages
   if (pathname.includes('/chats/') && segment !== 'chats') {
@@ -71,10 +83,32 @@ function getPageTitle(pathname: string): string {
   return titles[segment] ?? 'Dashboard';
 }
 
+function ThemeToggle() {
+  const { theme, setTheme } = useTheme();
+  const next = theme === 'light' ? 'dark' : theme === 'dark' ? 'system' : 'light';
+  const Icon = theme === 'light' ? Sun : theme === 'dark' ? Moon : Monitor;
+  const label = theme === 'light' ? 'Light' : theme === 'dark' ? 'Dark' : 'System';
+
+  return (
+    <Button
+      variant="ghost"
+      size="sm"
+      onClick={() => setTheme(next)}
+      title={`Theme: ${label}. Click to switch.`}
+      className="gap-1.5"
+    >
+      <Icon className="h-4 w-4" />
+      <span className="hidden sm:inline text-xs">{label}</span>
+    </Button>
+  );
+}
+
 export function DashboardLayout() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+  const { connected } = useRealtime();
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const userLevel = ROLE_LEVELS[user?.role ?? ''] ?? 0;
 
@@ -88,12 +122,39 @@ export function DashboardLayout() {
     navigate('/login');
   };
 
+  // Close sidebar on route change (mobile)
+  useEffect(() => {
+    setSidebarOpen(false);
+  }, [location.pathname]);
+
   return (
     <div className="flex h-screen">
+      <NotificationListener />
+      {/* Mobile overlay */}
+      {sidebarOpen && (
+        <div
+          className="fixed inset-0 z-40 bg-black/50 lg:hidden"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
       {/* Sidebar */}
-      <aside className="flex w-64 flex-shrink-0 flex-col border-r bg-card">
-        <div className="flex h-14 items-center border-b px-6">
+      <aside
+        className={cn(
+          'fixed inset-y-0 left-0 z-50 flex w-64 flex-col border-r bg-card transition-transform duration-200 lg:static lg:translate-x-0',
+          sidebarOpen ? 'translate-x-0' : '-translate-x-full',
+        )}
+      >
+        <div className="flex h-14 items-center justify-between border-b px-6">
           <h1 className="text-lg font-bold">OpenClaw Admin</h1>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="lg:hidden"
+            onClick={() => setSidebarOpen(false)}
+          >
+            <X className="h-4 w-4" />
+          </Button>
         </div>
         <nav className="flex-1 space-y-1 overflow-y-auto p-4">
           {visibleNavItems.map(({ to, label, icon: Icon, end }) => (
@@ -128,13 +189,30 @@ export function DashboardLayout() {
       {/* Main area */}
       <div className="flex flex-1 flex-col overflow-hidden">
         {/* Top bar */}
-        <header className="flex h-14 items-center border-b bg-background px-8">
-          <h2 className="text-lg font-semibold">{getPageTitle(location.pathname)}</h2>
+        <header className="flex h-14 items-center justify-between border-b bg-background px-4 sm:px-8">
+          <div className="flex items-center gap-3">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="lg:hidden"
+              onClick={() => setSidebarOpen(true)}
+            >
+              <Menu className="h-5 w-5" />
+            </Button>
+            <h2 className="text-lg font-semibold">{getPageTitle(location.pathname)}</h2>
+          </div>
+          <div className="flex items-center gap-3">
+            <ThemeToggle />
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <span className={cn('inline-block h-2 w-2 rounded-full', connected ? 'bg-green-500' : 'bg-muted-foreground/40')} />
+              <span className="hidden sm:inline">{connected ? 'Live' : 'Offline'}</span>
+            </div>
+          </div>
         </header>
 
         {/* Content */}
         <main className="flex-1 overflow-auto">
-          <div className="p-8">
+          <div className="p-4 sm:p-8">
             <Outlet />
           </div>
         </main>

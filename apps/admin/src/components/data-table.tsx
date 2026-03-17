@@ -10,6 +10,8 @@ export interface Column<T> {
   header: string;
   render: (row: T) => ReactNode;
   className?: string;
+  /** Hide this column on mobile screens */
+  hideOnMobile?: boolean;
 }
 
 interface DataTableProps<T> {
@@ -52,14 +54,14 @@ export function DataTable<T extends { id?: string }>({
       <div className="rounded-lg border">
         <div className="border-b px-4 py-3">
           <div className="flex gap-4">
-            {columns.map((col) => (
+            {columns.filter((c) => !c.hideOnMobile).map((col) => (
               <Skeleton key={col.key} className="h-4 w-24" />
             ))}
           </div>
         </div>
         {Array.from({ length: 5 }).map((_, i) => (
           <div key={i} className="flex gap-4 border-b px-4 py-3 last:border-0">
-            {columns.map((col) => (
+            {columns.filter((c) => !c.hideOnMobile).map((col) => (
               <Skeleton key={col.key} className="h-4 w-24" />
             ))}
           </div>
@@ -74,14 +76,14 @@ export function DataTable<T extends { id?: string }>({
 
   return (
     <div>
-      <div className="rounded-lg border">
-        <table className="w-full">
+      <div className="overflow-x-auto rounded-lg border">
+        <table className="w-full min-w-[480px]">
           <thead>
             <tr className="border-b bg-muted/50">
               {columns.map((col) => (
                 <th
                   key={col.key}
-                  className={`px-4 py-3 text-left text-sm font-medium text-muted-foreground ${col.className ?? ''}`}
+                  className={`px-4 py-3 text-left text-sm font-medium text-muted-foreground ${col.className ?? ''} ${col.hideOnMobile ? 'hidden md:table-cell' : ''}`}
                 >
                   {col.header}
                 </th>
@@ -98,7 +100,10 @@ export function DataTable<T extends { id?: string }>({
                 onClick={() => onRowClick?.(row)}
               >
                 {columns.map((col) => (
-                  <td key={col.key} className={`px-4 py-3 text-sm ${col.className ?? ''}`}>
+                  <td
+                    key={col.key}
+                    className={`px-4 py-3 text-sm ${col.className ?? ''} ${col.hideOnMobile ? 'hidden md:table-cell' : ''}`}
+                  >
                     {col.render(row)}
                   </td>
                 ))}
@@ -109,7 +114,7 @@ export function DataTable<T extends { id?: string }>({
       </div>
 
       {onPageChange && total > pageSize && (
-        <div className="mt-4 flex items-center justify-between">
+        <div className="mt-4 flex flex-col items-center gap-2 sm:flex-row sm:justify-between">
           <p className="text-sm text-muted-foreground">
             Showing {(page - 1) * pageSize + 1}–{Math.min(page * pageSize, total)} of {total}
           </p>

@@ -27,6 +27,7 @@ import { jobsRouter } from './routes/jobs.js';
 import { memoryRouter } from './routes/memory.js';
 import { bookkeepingRouter } from './routes/bookkeeping.js';
 import { securityRouter } from './routes/security.js';
+import { eventsRouter } from './routes/events.js';
 import { webhooksRouter } from './routes/webhooks/index.js';
 
 /** Global API rate limiter — 200 requests per minute per IP */
@@ -120,6 +121,7 @@ export function createApp() {
   app.use(`${API_PREFIX}/memory`, memoryRouter);
   app.use(`${API_PREFIX}/bookkeeping`, bookkeepingRouter);
   app.use(`${API_PREFIX}/security`, securityRouter);
+  app.use(`${API_PREFIX}/events`, eventsRouter);
 
   // ── Serve admin frontend (single-service deployment) ──
   const __dirname = path.dirname(fileURLToPath(import.meta.url));

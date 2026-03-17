@@ -1,12 +1,14 @@
 import { useState, useMemo } from 'react';
 import type { UsageSummaryResponse, UsageTimeseriesBucket } from '@openclaw/shared';
-import { DollarSign, Cpu, Zap, TrendingUp, Clock } from 'lucide-react';
+import { DollarSign, Cpu, Zap, TrendingUp, Clock, Download } from 'lucide-react';
 import { PageHeader } from '@/components/page-header';
 import { MetricCard } from '@/components/metric-card';
+import { Button } from '@/components/ui/button';
 import { Select } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { useApiQuery } from '@/hooks/use-api-query';
+import { downloadCsv } from '@/lib/export';
 
 const EMPTY_SUMMARY: { data: UsageSummaryResponse } = {
   data: { totalCostUsd: 0, totalTokens: 0, totalRequests: 0, averageLatencyMs: null, byModel: [] },
@@ -239,7 +241,7 @@ export function UsagePage() {
         description="Monitor AI model usage, costs, and performance."
       />
 
-      <div className="flex items-center gap-3">
+      <div className="flex flex-wrap items-center gap-3">
         <Select value={dateRange} onChange={(e) => setDateRange(e.target.value)} className="w-40">
           <option value="7d">Last 7 days</option>
           <option value="30d">Last 30 days</option>
@@ -251,6 +253,19 @@ export function UsagePage() {
           onChange={(e) => setProvider(e.target.value)}
           className="w-48"
         />
+        <Button
+          variant="outline"
+          size="sm"
+          className="ml-auto gap-1.5"
+          onClick={() => {
+            const p = new URLSearchParams({ dateFrom, dateTo });
+            if (provider) p.set('provider', provider);
+            void downloadCsv(`/usage/summary/export?${p.toString()}`, 'usage-summary.csv');
+          }}
+        >
+          <Download className="h-4 w-4" />
+          Export CSV
+        </Button>
       </div>
 
       {/* Summary metrics */}

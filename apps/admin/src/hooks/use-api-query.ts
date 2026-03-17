@@ -8,11 +8,6 @@ interface UseApiQueryResult<T> {
   refetch: () => void;
 }
 
-/**
- * Simple data-fetching hook for GET endpoints.
- * Returns loading/error/data states and a refetch function.
- * Gracefully handles backend not-yet-implemented (404/501) as empty data.
- */
 export function useApiQuery<T>(
   endpoint: string | null,
   defaultValue: T,

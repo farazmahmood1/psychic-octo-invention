@@ -18,6 +18,7 @@ import { executeExternalToolCalls } from './external-tool-executor.js';
 import { getRoutingSettings } from '../services/settings.service.js';
 import { usageRepository } from '../repositories/usage.repository.js';
 import { maybeGenerateTitle, maybeCloseConversation } from './post-processing.js';
+import { sseHub } from '../services/sse.service.js';
 
 /**
  * Central execution pipeline for processing one inbound event.
@@ -335,6 +336,29 @@ export async function executeEvent(event: InboundEvent): Promise<ExecutionResult
   } catch (err) {
     warnings.push('Message metadata update failed');
     logger.warn({ err, replyMessageId }, 'Failed to update message runtime metadata');
+  }
+
+  // 11c. Emit real-time SSE events for admin portal
+  try {
+    sseHub.emit('conversation:message', {
+      conversationId,
+      messageId: replyMessageId,
+      direction: 'outbound',
+      contentPreview: finalReply.slice(0, 200),
+      model: response.model,
+      tier: routing.tier,
+      tokens: response.usage.totalTokens,
+      costUsd: response.usage.estimatedCostUsd,
+      timestamp: new Date().toISOString(),
+    });
+    sseHub.emit('usage:updated', {
+      model: response.model,
+      tokens: response.usage.totalTokens,
+      costUsd: response.usage.estimatedCostUsd,
+      timestamp: new Date().toISOString(),
+    });
+  } catch {
+    // SSE emission is non-critical
   }
 
   // 12. Post-processing: title generation + close detection (fire-and-forget)

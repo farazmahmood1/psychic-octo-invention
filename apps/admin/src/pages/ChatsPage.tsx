@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import type { ConversationSummary, PaginatedResponse } from '@openclaw/shared';
 import { PageHeader } from '@/components/page-header';
@@ -7,6 +7,7 @@ import { StatusBadge } from '@/components/status-badge';
 import { Select } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 import { useApiQuery } from '@/hooks/use-api-query';
+import { Search } from 'lucide-react';
 
 const EMPTY_RESPONSE: PaginatedResponse<ConversationSummary> = {
   data: [],
@@ -41,6 +42,17 @@ export function ChatsPage() {
   const [channel, setChannel] = useState('');
   const [status, setStatus] = useState('');
   const [search, setSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const debounceRef = useRef<ReturnType<typeof setTimeout>>();
+
+  // Debounce search input (400ms)
+  useEffect(() => {
+    debounceRef.current = setTimeout(() => {
+      setDebouncedSearch(search);
+      setPage(1);
+    }, 400);
+    return () => clearTimeout(debounceRef.current);
+  }, [search]);
 
   const params = useMemo(() => {
     const p = new URLSearchParams();
@@ -48,25 +60,17 @@ export function ChatsPage() {
     p.set('pageSize', '20');
     if (channel) p.set('channel', channel);
     if (status) p.set('status', status);
+    if (debouncedSearch) p.set('search', debouncedSearch);
     return p.toString();
-  }, [page, channel, status]);
+  }, [page, channel, status, debouncedSearch]);
 
   const { data, loading, error, refetch } = useApiQuery<PaginatedResponse<ConversationSummary>>(
     `/conversations?${params}`,
     EMPTY_RESPONSE,
   );
 
-  const conversations = data?.data ?? [];
+  const filtered = data?.data ?? [];
   const meta = data?.meta ?? EMPTY_RESPONSE.meta;
-
-  // Client-side search filter
-  const filtered = search
-    ? conversations.filter(
-        (c) =>
-          c.id.toLowerCase().includes(search.toLowerCase()) ||
-          c.title?.toLowerCase().includes(search.toLowerCase()),
-      )
-    : conversations;
 
   const handleRowClick = useCallback(
     (row: ConversationSummary) => {
@@ -142,12 +146,15 @@ export function ChatsPage() {
 
       {/* Filters */}
       <div className="flex flex-wrap items-center gap-3">
-        <Input
-          placeholder="Search by ID or title..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="w-64"
-        />
+        <div className="relative">
+          <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            placeholder="Search messages, titles..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="w-72 pl-9"
+          />
+        </div>
         <Select value={channel} onChange={(e) => handleChannelChange(e.target.value)}>
           {CHANNEL_OPTIONS.map((opt) => (
             <option key={opt.value} value={opt.value}>

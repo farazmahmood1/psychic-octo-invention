@@ -10,6 +10,7 @@ export async function listConversations(query: ConversationListQuery) {
     participantExternalId: query.participantExternalId,
     dateFrom: query.dateFrom,
     dateTo: query.dateTo,
+    search: query.search,
     page: query.page,
     pageSize: query.pageSize,
   });

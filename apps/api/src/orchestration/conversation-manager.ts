@@ -1,6 +1,7 @@
 import type { InboundEvent } from '@openclaw/shared';
 import type { Prisma } from '@prisma/client';
 import { prisma } from '../db/client.js';
+import { sseHub } from '../services/sse.service.js';
 
 /**
  * Resolve or create a conversation and participant for an inbound event.
@@ -35,6 +36,15 @@ export async function resolveConversation(event: InboundEvent): Promise<{
         metadata: event.metadata as unknown as Prisma.InputJsonValue,
       },
     });
+    try {
+      sseHub.emit('conversation:new', {
+        conversationId: conversation.id,
+        channel: event.channel,
+        timestamp: new Date().toISOString(),
+      });
+    } catch {
+      // non-critical
+    }
   }
 
   const participant = await ensureParticipant(conversation.id, event);
@@ -87,6 +97,18 @@ export const persistMessages = {
         metadata: event.metadata as unknown as Prisma.InputJsonValue,
       },
     });
+    try {
+      sseHub.emit('conversation:message', {
+        conversationId,
+        messageId: message.id,
+        direction: 'inbound',
+        contentPreview: event.text.slice(0, 200),
+        channel: event.channel,
+        timestamp: new Date().toISOString(),
+      });
+    } catch {
+      // non-critical
+    }
     return message.id;
   },
 

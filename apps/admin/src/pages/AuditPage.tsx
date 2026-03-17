@@ -8,7 +8,8 @@ import { Select } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { useApiQuery } from '@/hooks/use-api-query';
-import { X } from 'lucide-react';
+import { X, Download } from 'lucide-react';
+import { downloadCsv } from '@/lib/export';
 
 const EMPTY_RESPONSE: PaginatedResponse<AuditLogEntry> = {
   data: [],
@@ -155,6 +156,7 @@ export function AuditPage() {
         </span>
       ),
       className: 'w-28',
+      hideOnMobile: true,
     },
     {
       key: 'target',
@@ -172,6 +174,7 @@ export function AuditPage() {
         ) : (
           <span className="text-muted-foreground">-</span>
         ),
+      hideOnMobile: true,
     },
     {
       key: 'ip',
@@ -182,6 +185,7 @@ export function AuditPage() {
         </span>
       ),
       className: 'w-32',
+      hideOnMobile: true,
     },
   ];
 
@@ -210,6 +214,21 @@ export function AuditPage() {
           onChange={(e) => { setActorSearch(e.target.value); setPage(1); }}
           className="w-48"
         />
+        <Button
+          variant="outline"
+          size="sm"
+          className="ml-auto gap-1.5"
+          onClick={() => {
+            const p = new URLSearchParams();
+            if (action) p.set('action', action);
+            if (targetType) p.set('targetType', targetType);
+            if (actorSearch) p.set('actorId', actorSearch);
+            void downloadCsv(`/audit/export?${p.toString()}`, 'audit-log.csv');
+          }}
+        >
+          <Download className="h-4 w-4" />
+          Export CSV
+        </Button>
       </div>
 
       {/* Table + Detail panel */}

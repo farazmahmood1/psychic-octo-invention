@@ -1,8 +1,14 @@
+import { useState, useCallback, useEffect } from 'react';
 import { PageHeader } from '@/components/page-header';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { useApiQuery } from '@/hooks/use-api-query';
+import { useToast } from '@/components/toast';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Dialog, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import { apiClient } from '@/api/client';
 import {
   Bot,
   Mail,
@@ -11,6 +17,8 @@ import {
   Server,
   FileSpreadsheet,
   Zap,
+  Settings2,
+  Loader2,
 } from 'lucide-react';
 import type { ReactNode } from 'react';
 
@@ -110,21 +118,139 @@ function statusLabel(status: string): string {
   }
 }
 
+interface ConfigField {
+  key: string;
+  label: string;
+  type: 'text' | 'password' | 'url';
+  required: boolean;
+  helpText: string | null;
+  configured: boolean;
+  maskedValue: string | null;
+}
+
+interface IntegrationConfigResponse {
+  data: {
+    key: string;
+    fields: ConfigField[];
+  };
+}
+
+function SetupWizard({ integrationKey, integrationName, open, onClose, onSaved }: {
+  integrationKey: string;
+  integrationName: string;
+  open: boolean;
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const [fields, setFields] = useState<ConfigField[]>([]);
+  const [values, setValues] = useState<Record<string, string>>({});
+  const [loadingConfig, setLoadingConfig] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const { toast } = useToast();
+
+  const loadConfig = useCallback(async () => {
+    setLoadingConfig(true);
+    try {
+      const res = await apiClient.get<IntegrationConfigResponse['data']>(`/integrations/${integrationKey}/config`);
+      setFields(res.fields);
+      // Pre-fill empty values
+      const initial: Record<string, string> = {};
+      for (const f of res.fields) {
+        initial[f.key] = '';
+      }
+      setValues(initial);
+    } catch {
+      toast('error', 'Failed to load configuration');
+    } finally {
+      setLoadingConfig(false);
+    }
+  }, [integrationKey, toast]);
+
+  // Load config when dialog opens
+  useEffect(() => {
+    if (open) void loadConfig();
+  }, [open, loadConfig]);
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      await apiClient.post(`/integrations/${integrationKey}/config`, { fields: values });
+      toast('success', `${integrationName} configuration saved`);
+      onSaved();
+      onClose();
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Failed to save configuration';
+      toast('error', msg);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onClose={onClose}>
+      <DialogHeader>
+        <DialogTitle>Configure {integrationName}</DialogTitle>
+        <DialogDescription>
+          Enter the credentials and settings for this integration. Fields are applied at runtime.
+        </DialogDescription>
+      </DialogHeader>
+
+      {loadingConfig ? (
+        <div className="flex items-center justify-center py-8">
+          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {fields.map((field) => (
+            <div key={field.key}>
+              <label className="mb-1 block text-sm font-medium">
+                {field.label}
+                {field.required && <span className="ml-1 text-destructive">*</span>}
+              </label>
+              <Input
+                type={field.type === 'password' ? 'password' : 'text'}
+                placeholder={field.configured ? `Current: ${field.maskedValue ?? '(set)'}` : 'Not configured'}
+                value={values[field.key] ?? ''}
+                onChange={(e) => setValues((prev) => ({ ...prev, [field.key]: e.target.value }))}
+              />
+              {field.helpText && (
+                <p className="mt-1 text-xs text-muted-foreground">{field.helpText}</p>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
+      <DialogFooter>
+        <Button variant="outline" onClick={onClose}>Cancel</Button>
+        <Button onClick={() => void handleSave()} disabled={saving}>
+          {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+          Save Configuration
+        </Button>
+      </DialogFooter>
+    </Dialog>
+  );
+}
+
 export function IntegrationsPage() {
-  const { data, loading } = useApiQuery<IntegrationsResponse>(
+  const { data, loading, refetch } = useApiQuery<IntegrationsResponse>(
     '/integrations/health',
     EMPTY_RESPONSE,
   );
+
+  const [wizardKey, setWizardKey] = useState<string | null>(null);
 
   const healthMap = new Map(
     (data?.data ?? []).map((h) => [h.key, h]),
   );
 
+  const wizardIntegration = INTEGRATIONS.find((i) => i.key === wizardKey);
+
   return (
     <div className="space-y-6">
       <PageHeader
         title="Integrations"
-        description="View the connection status of all external services."
+        description="View the connection status of all external services. Click Configure to set up credentials."
       />
 
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
@@ -160,11 +286,30 @@ export function IntegrationsPage() {
                     Last checked: {new Date(health.checkedAt).toLocaleString()}
                   </p>
                 )}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="mt-3 gap-1.5"
+                  onClick={() => setWizardKey(integration.key)}
+                >
+                  <Settings2 className="h-3.5 w-3.5" />
+                  Configure
+                </Button>
               </CardContent>
             </Card>
           );
         })}
       </div>
+
+      {wizardKey && wizardIntegration && (
+        <SetupWizard
+          integrationKey={wizardKey}
+          integrationName={wizardIntegration.name}
+          open={!!wizardKey}
+          onClose={() => setWizardKey(null)}
+          onSaved={refetch}
+        />
+      )}
     </div>
   );
 }

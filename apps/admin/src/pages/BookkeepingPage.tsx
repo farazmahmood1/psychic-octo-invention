@@ -3,10 +3,13 @@ import type { BookkeepingExtractionSummary, PaginatedResponse } from '@openclaw/
 import { PageHeader } from '@/components/page-header';
 import { DataTable, type Column } from '@/components/data-table';
 import { StatusBadge } from '@/components/status-badge';
+import { Button } from '@/components/ui/button';
 import { Select } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { useApiQuery } from '@/hooks/use-api-query';
+import { Download } from 'lucide-react';
+import { downloadCsv } from '@/lib/export';
 
 const EMPTY_RESPONSE: PaginatedResponse<BookkeepingExtractionSummary> = {
   data: [],
@@ -118,6 +121,7 @@ export function BookkeepingPage() {
         ) : '-'
       ),
       className: 'w-28 text-center',
+      hideOnMobile: true,
     },
     {
       key: 'status',
@@ -130,12 +134,14 @@ export function BookkeepingPage() {
       header: 'Export',
       render: (row) => row.exportStatus ? <StatusBadge status={row.exportStatus} /> : <span className="text-muted-foreground">-</span>,
       className: 'w-28',
+      hideOnMobile: true,
     },
     {
       key: 'channel',
       header: 'Channel',
       render: (row) => row.sourceChannel,
       className: 'w-28',
+      hideOnMobile: true,
     },
     {
       key: 'date',
@@ -158,6 +164,19 @@ export function BookkeepingPage() {
             <option key={opt.value} value={opt.value}>{opt.label}</option>
           ))}
         </Select>
+        <Button
+          variant="outline"
+          size="sm"
+          className="ml-auto gap-1.5"
+          onClick={() => {
+            const p = new URLSearchParams();
+            if (status) p.set('status', status);
+            void downloadCsv(`/bookkeeping/export?${p.toString()}`, 'bookkeeping.csv');
+          }}
+        >
+          <Download className="h-4 w-4" />
+          Export CSV
+        </Button>
       </div>
 
       <div className="flex gap-6">

@@ -14,6 +14,7 @@ import { JobsPage } from './pages/JobsPage';
 import { BookkeepingPage } from './pages/BookkeepingPage';
 import { SecurityPage } from './pages/SecurityPage';
 import { MemoryPage } from './pages/MemoryPage';
+import { MarketplacePage } from './pages/MarketplacePage';
 
 export function App() {
   return (
@@ -38,6 +39,7 @@ export function App() {
         <Route path="bookkeeping" element={<BookkeepingPage />} />
         <Route path="memory" element={<MemoryPage />} />
         <Route path="security" element={<SecurityPage />} />
+        <Route path="marketplace" element={<MarketplacePage />} />
         <Route path="settings" element={<SettingsPage />} />
       </Route>
       <Route path="*" element={<Navigate to="/dashboard" replace />} />

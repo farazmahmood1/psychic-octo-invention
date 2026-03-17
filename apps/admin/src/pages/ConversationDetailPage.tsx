@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import type { ConversationDetail, MessageRecord, PaginatedResponse } from '@openclaw/shared';
 import { PageHeader } from '@/components/page-header';
@@ -10,7 +10,9 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Card, CardContent } from '@/components/ui/card';
 import { useApiQuery } from '@/hooks/use-api-query';
-import { ArrowLeft, User, Bot, Paperclip } from 'lucide-react';
+import { useRealtime } from '@/lib/realtime-context';
+import { apiClient } from '@/api/client';
+import { ArrowLeft, User, Bot, Paperclip, Send, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const EMPTY_DETAIL: { data: ConversationDetail } = {
@@ -141,10 +143,87 @@ function MessageBubble({ message }: { message: MessageRecord }) {
   );
 }
 
+function MessageComposer({
+  conversationId,
+  onMessageSent,
+}: {
+  conversationId: string;
+  onMessageSent: () => void;
+}) {
+  const [text, setText] = useState('');
+  const [sending, setSending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  const handleSend = async () => {
+    const trimmed = text.trim();
+    if (!trimmed || sending) return;
+
+    setSending(true);
+    setError(null);
+
+    try {
+      await apiClient.post(`/conversations/${conversationId}/send`, { text: trimmed });
+      setText('');
+      onMessageSent();
+      // Focus back on textarea
+      textareaRef.current?.focus();
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to send message');
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      void handleSend();
+    }
+  };
+
+  return (
+    <div className="space-y-2">
+      {error && (
+        <p className="text-sm text-destructive">{error}</p>
+      )}
+      <div className="flex gap-2">
+        <textarea
+          ref={textareaRef}
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          onKeyDown={handleKeyDown}
+          placeholder="Type a message... (Enter to send, Shift+Enter for newline)"
+          rows={2}
+          disabled={sending}
+          className="flex-1 resize-none rounded-md border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
+        />
+        <Button
+          onClick={() => void handleSend()}
+          disabled={!text.trim() || sending}
+          className="self-end"
+          size="sm"
+        >
+          {sending ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <Send className="h-4 w-4" />
+          )}
+        </Button>
+      </div>
+      <p className="text-xs text-muted-foreground">
+        Messages are processed through the AI orchestration pipeline.
+      </p>
+    </div>
+  );
+}
+
 export function ConversationDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [msgPage, setMsgPage] = useState(1);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const { subscribe } = useRealtime();
 
   const detail = useApiQuery<{ data: ConversationDetail }>(
     id ? `/conversations/${id}` : null,
@@ -162,6 +241,29 @@ export function ConversationDetailPage() {
     id ? `/conversations/${id}/messages?${msgParams}` : null,
     EMPTY_MESSAGES,
   );
+
+  const refetchMessages = messages.refetch;
+
+  // Auto-refresh messages when we get an SSE event for this conversation
+  const handleRealtimeMessage = useCallback(
+    (data: unknown) => {
+      const event = data as { conversationId?: string };
+      if (event.conversationId === id) {
+        refetchMessages();
+      }
+    },
+    [id, refetchMessages],
+  );
+
+  useEffect(() => {
+    const unsub = subscribe('conversation:message', handleRealtimeMessage);
+    return unsub;
+  }, [subscribe, handleRealtimeMessage]);
+
+  // Scroll to bottom when new messages load
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages.data?.data?.length]);
 
   const conv = detail.data?.data;
   const msgList = messages.data?.data ?? [];
@@ -219,13 +321,14 @@ export function ConversationDetailPage() {
               ) : msgList.length === 0 ? (
                 <EmptyState
                   title="No messages"
-                  description="This conversation has no messages yet."
+                  description="Send a message below to start the conversation."
                 />
               ) : (
                 <div className="space-y-4">
                   {msgList.map((msg) => (
                     <MessageBubble key={msg.id} message={msg} />
                   ))}
+                  <div ref={messagesEndRef} />
                 </div>
               )}
 
@@ -256,6 +359,18 @@ export function ConversationDetailPage() {
               )}
             </CardContent>
           </Card>
+
+          {/* Message Composer */}
+          {conv.status === 'active' && (
+            <Card>
+              <CardContent className="p-4">
+                <MessageComposer
+                  conversationId={conv.id}
+                  onMessageSent={() => messages.refetch()}
+                />
+              </CardContent>
+            </Card>
+          )}
         </>
       ) : null}
     </div>
