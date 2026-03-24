@@ -134,6 +134,15 @@ export class OpenRouterProvider implements LlmProvider {
     if (msg.toolCallId) {
       result['tool_call_id'] = msg.toolCallId;
     }
+    // Assistant messages with tool calls must include the tool_calls array
+    // so the API can match subsequent tool_result blocks to their tool_use.
+    if (msg.toolCalls && msg.toolCalls.length > 0) {
+      result['tool_calls'] = msg.toolCalls.map((tc) => ({
+        id: tc.id,
+        type: 'function',
+        function: { name: tc.name, arguments: tc.arguments },
+      }));
+    }
     return result;
   }
 

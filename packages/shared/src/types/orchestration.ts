@@ -70,6 +70,8 @@ export interface LlmMessage {
   images?: LlmImage[];
   /** Tool call ID (for role=tool responses) */
   toolCallId?: string;
+  /** Tool calls made by the assistant (for role=assistant with tool use) */
+  toolCalls?: LlmToolCall[];
 }
 
 export interface LlmImage {

@@ -106,8 +106,26 @@ async function executeGhlSubAgent(
   _toolCallId: string,
   args: Record<string, unknown>,
 ): Promise<SubAgentDispatch> {
+  const VALID_GHL_ACTIONS: GhlSubAgentInput['action'][] = [
+    'search_contact', 'update_contact', 'get_contact', 'create_contact',
+    'create_opportunity', 'get_opportunity', 'update_opportunity', 'search_opportunities', 'delete_opportunity',
+    'get_pipelines',
+    'add_note', 'list_notes', 'get_note', 'update_note', 'delete_note',
+    'send_sms', 'send_email',
+    'list_conversations', 'get_conversation', 'update_conversation', 'list_conversation_messages',
+    'create_task', 'list_tasks', 'update_task', 'delete_task',
+    'list_calendars', 'get_free_slots', 'create_appointment',
+    'update_calendar_event', 'delete_calendar_event', 'list_contact_appointments',
+    'list_users', 'get_location', 'update_location', 'list_reviews',
+    'create_invoice', 'get_invoice', 'list_invoices', 'send_invoice',
+    'list_orders', 'get_order',
+    'list_campaigns', 'list_workflows', 'trigger_workflow',
+    'list_forms', 'get_form_submissions',
+    'list_surveys', 'get_survey_submissions',
+  ];
+
   const rawAction = (args['action'] as string) ?? 'search_contact';
-  const action = (['search_contact', 'update_contact', 'get_contact'].includes(rawAction)
+  const action = (VALID_GHL_ACTIONS.includes(rawAction as GhlSubAgentInput['action'])
     ? rawAction
     : 'search_contact') as GhlSubAgentInput['action'];
 
@@ -123,6 +141,59 @@ async function executeGhlSubAgent(
     query,
     contactId,
     updates,
+    // Note fields
+    noteBody: firstStringArg(args, ['noteBody', 'note_body', 'note', 'body']),
+    // SMS fields
+    message: firstStringArg(args, ['message', 'smsMessage', 'sms_message', 'text']),
+    // Opportunity fields
+    opportunityName: firstStringArg(args, ['opportunityName', 'opportunity_name', 'dealName', 'deal_name']),
+    pipelineId: firstStringArg(args, ['pipelineId', 'pipeline_id']),
+    pipelineStageId: firstStringArg(args, ['pipelineStageId', 'pipeline_stage_id', 'stageId', 'stage_id']),
+    monetaryValue: typeof args['monetaryValue'] === 'number' ? args['monetaryValue'] : undefined,
+    // Calendar / Appointment fields
+    calendarId: firstStringArg(args, ['calendarId', 'calendar_id']),
+    startTime: firstStringArg(args, ['startTime', 'start_time', 'startDate', 'start_date']),
+    endTime: firstStringArg(args, ['endTime', 'end_time', 'endDate', 'end_date']),
+    title: firstStringArg(args, ['title', 'appointmentTitle', 'appointment_title']),
+    appointmentNotes: firstStringArg(args, ['appointmentNotes', 'appointment_notes']),
+    // Calendar event management
+    eventId: firstStringArg(args, ['eventId', 'event_id', 'appointmentId', 'appointment_id']),
+    // Invoice fields
+    invoiceId: firstStringArg(args, ['invoiceId', 'invoice_id']),
+    invoiceName: firstStringArg(args, ['invoiceName', 'invoice_name', 'invoiceTitle', 'invoice_title']),
+    invoiceItems: Array.isArray(args['invoiceItems']) ? args['invoiceItems'] as GhlSubAgentInput['invoiceItems'] : undefined,
+    dueDate: firstStringArg(args, ['dueDate', 'due_date']),
+    currency: firstStringArg(args, ['currency', 'currencyCode', 'currency_code']),
+    // Order fields
+    orderId: firstStringArg(args, ['orderId', 'order_id']),
+    // Location fields
+    locationUpdates: isRecord(args['locationUpdates']) ? args['locationUpdates'] as Record<string, unknown> : undefined,
+    // Workflow fields
+    workflowId: firstStringArg(args, ['workflowId', 'workflow_id']),
+    // Form fields
+    formId: firstStringArg(args, ['formId', 'form_id']),
+    // Survey fields
+    surveyId: firstStringArg(args, ['surveyId', 'survey_id']),
+    // Email fields
+    emailSubject: firstStringArg(args, ['emailSubject', 'email_subject', 'subject']),
+    emailBody: firstStringArg(args, ['emailBody', 'email_body', 'body']),
+    emailHtml: firstStringArg(args, ['emailHtml', 'email_html', 'html']),
+    // Conversation fields
+    conversationId: firstStringArg(args, ['conversationId', 'conversation_id']),
+    conversationStatus: firstStringArg(args, ['conversationStatus', 'conversation_status']),
+    assignedTo: firstStringArg(args, ['assignedTo', 'assigned_to', 'assignedUserId', 'assigned_user_id']),
+    // Opportunity fields (enhanced)
+    opportunityId: firstStringArg(args, ['opportunityId', 'opportunity_id', 'dealId', 'deal_id']),
+    opportunityStatus: firstStringArg(args, ['opportunityStatus', 'opportunity_status', 'dealStatus', 'deal_status']),
+    // Note fields (enhanced)
+    noteId: firstStringArg(args, ['noteId', 'note_id']),
+    // Task fields
+    taskId: firstStringArg(args, ['taskId', 'task_id']),
+    taskTitle: firstStringArg(args, ['taskTitle', 'task_title', 'taskName', 'task_name']),
+    taskBody: firstStringArg(args, ['taskBody', 'task_body', 'taskDescription', 'task_description']),
+    taskDueDate: firstStringArg(args, ['taskDueDate', 'task_due_date', 'taskDue', 'task_due']),
+    taskStatus: firstStringArg(args, ['taskStatus', 'task_status']),
+    taskCompleted: typeof args['taskCompleted'] === 'boolean' ? args['taskCompleted'] : (typeof args['task_completed'] === 'boolean' ? args['task_completed'] : undefined),
   };
 
   // Persist sub-agent task record
@@ -175,8 +246,10 @@ async function executeBookkeepingSubAgent(
     ? rawAction
     : 'process_receipt') as BookkeepingSubAgentInput['action'];
 
-  const imageUrl = firstStringArg(args, ['imageUrl', 'image_url', 'attachmentUrl', 'attachment_url', 'url'])
-    ?? context?.sourceImageUrl;
+  // Prefer the real attachment URL from context (the LLM cannot see the
+  // actual file URL and frequently hallucinates a placeholder).
+  const imageUrl = context?.sourceImageUrl
+    ?? firstStringArg(args, ['imageUrl', 'image_url', 'attachmentUrl', 'attachment_url', 'url']);
   const receiptTaskId = firstStringArg(args, ['receiptTaskId', 'receiptTaskID', 'receipt_task_id', 'receipt_id', 'taskId']);
   const category = firstStringArg(args, ['category', 'expenseCategory', 'expense_category'])
     ?? (typeof args['value'] === 'string' ? args['value'] : undefined);
