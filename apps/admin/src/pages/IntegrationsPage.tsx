@@ -144,18 +144,18 @@ function SetupWizard({ integrationKey, integrationName, open, onClose, onSaved }
 }) {
   const [fields, setFields] = useState<ConfigField[]>([]);
   const [values, setValues] = useState<Record<string, string>>({});
-  const [loadingConfig, setLoadingConfig] = useState(false);
+  const [loadingConfig, setLoadingConfig] = useState(true);
   const [saving, setSaving] = useState(false);
   const { toast } = useToast();
 
   const loadConfig = useCallback(async () => {
     setLoadingConfig(true);
     try {
-      const res = await apiClient.get<IntegrationConfigResponse['data']>(`/integrations/${integrationKey}/config`);
-      setFields(res.fields);
+      const res = await apiClient.get<IntegrationConfigResponse>(`/integrations/${integrationKey}/config`);
+      setFields(res.data.fields);
       // Pre-fill empty values
       const initial: Record<string, string> = {};
-      for (const f of res.fields) {
+      for (const f of res.data.fields) {
         initial[f.key] = '';
       }
       setValues(initial);
@@ -195,13 +195,13 @@ function SetupWizard({ integrationKey, integrationName, open, onClose, onSaved }
         </DialogDescription>
       </DialogHeader>
 
-      {loadingConfig ? (
+      {loadingConfig || !fields ? (
         <div className="flex items-center justify-center py-8">
           <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
         </div>
       ) : (
         <div className="space-y-4">
-          {fields.map((field) => (
+          {(fields ?? []).map((field) => (
             <div key={field.key}>
               <label className="mb-1 block text-sm font-medium">
                 {field.label}
