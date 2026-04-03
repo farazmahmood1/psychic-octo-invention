@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { env } from '@openclaw/config';
+import { env } from '@nexclaw/config';
 
 vi.mock('../../integrations/telegram/client.js', () => ({
   deleteWebhook: vi.fn().mockResolvedValue(true),

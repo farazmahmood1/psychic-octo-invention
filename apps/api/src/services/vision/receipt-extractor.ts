@@ -1,5 +1,5 @@
-import { logger } from '@openclaw/config';
-import type { ReceiptExtractionData, LlmMessage } from '@openclaw/shared';
+import { logger } from '@nexclaw/config';
+import type { ReceiptExtractionData, LlmMessage } from '@nexclaw/shared';
 import { providerRegistry } from '../llm/index.js';
 import { validateAmount, validateCurrency, normalizeDate } from '../../validators/bookkeeping-fields.js';
 

@@ -1,5 +1,5 @@
-import { env } from '@openclaw/config';
-import { logger } from '@openclaw/config';
+import { env } from '@nexclaw/config';
+import { logger } from '@nexclaw/config';
 import type {
   LlmRequest,
   LlmResponse,
@@ -7,7 +7,7 @@ import type {
   LlmUsage,
   LlmMessage,
   LlmImage,
-} from '@openclaw/shared';
+} from '@nexclaw/shared';
 import type { LlmProvider } from '../../services/llm/provider.js';
 import { estimateLlmCostUsd } from '../../services/routing/model-pricing.js';
 
@@ -53,7 +53,7 @@ export class OpenRouterProvider implements LlmProvider {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${this.apiKey}`,
             'HTTP-Referer': env.APP_BASE_URL,
-            'X-Title': 'OpenClaw Admin System',
+            'X-Title': 'NexClaw Admin System',
           },
           body: JSON.stringify(body),
           signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),

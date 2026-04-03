@@ -1,6 +1,6 @@
 import type { Request, Response, NextFunction } from 'express';
-import { logger } from '@openclaw/config';
-import { HTTP_STATUS } from '@openclaw/shared';
+import { logger } from '@nexclaw/config';
+import { HTTP_STATUS } from '@nexclaw/shared';
 import { AppError } from '../utils/app-error.js';
 
 interface HttpLikeError extends Error {

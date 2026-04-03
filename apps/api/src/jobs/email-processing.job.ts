@@ -1,4 +1,4 @@
-import type { InboundEmailPayload } from '@openclaw/shared';
+import type { InboundEmailPayload } from '@nexclaw/shared';
 
 /**
  * Job payload for the email processing queue.

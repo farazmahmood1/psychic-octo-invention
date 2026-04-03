@@ -1,6 +1,6 @@
-import { HTTP_STATUS } from '@openclaw/shared';
-import type { InboundEmailPayload } from '@openclaw/shared';
-import { logger } from '@openclaw/config';
+import { HTTP_STATUS } from '@nexclaw/shared';
+import type { InboundEmailPayload } from '@nexclaw/shared';
+import { logger } from '@nexclaw/config';
 import { emailThreadRepository } from '../../repositories/email-thread.repository.js';
 import { enqueueEmailProcessing } from '../../workers/email-processing.worker.js';
 

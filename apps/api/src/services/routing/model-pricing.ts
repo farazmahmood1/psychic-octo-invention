@@ -1,9 +1,9 @@
-import { logger } from '@openclaw/config';
+import { logger } from '@nexclaw/config';
 import type {
   LlmMessage,
   LlmToolDefinition,
   RoutingSignals,
-} from '@openclaw/shared';
+} from '@nexclaw/shared';
 
 export interface ModelPricing {
   model: string;

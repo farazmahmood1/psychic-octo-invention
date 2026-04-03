@@ -89,8 +89,8 @@ describe('passwordSchema', () => {
 
 describe('loginRequestSchema', () => {
   it('parses valid login and lowercases email', () => {
-    const result = loginRequestSchema.parse({ email: 'Admin@OpenClaw.Dev', password: 'test' });
-    expect(result.email).toBe('admin@openclaw.dev');
+    const result = loginRequestSchema.parse({ email: 'Admin@NexClaw.Dev', password: 'test' });
+    expect(result.email).toBe('admin@nexclaw.dev');
     expect(result.password).toBe('test');
   });
 

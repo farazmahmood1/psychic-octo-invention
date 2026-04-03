@@ -4,7 +4,7 @@
  * and field update logic.
  */
 import { describe, it, expect } from 'vitest';
-import { GHL_EDITABLE_FIELDS } from '@openclaw/shared';
+import { GHL_EDITABLE_FIELDS } from '@nexclaw/shared';
 import {
   createGhlContact,
   createGhlSearchResult,

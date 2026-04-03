@@ -1,5 +1,5 @@
-import { env, logger } from '@openclaw/config';
-import type { BookkeepingSheetRow } from '@openclaw/shared';
+import { env, logger } from '@nexclaw/config';
+import type { BookkeepingSheetRow } from '@nexclaw/shared';
 
 // ── Types ────────────────────────────────────────────────────
 

@@ -1,7 +1,7 @@
-import type { SkillIngestInput, DetectedRisk, VettingResult } from '@openclaw/shared';
+import type { SkillIngestInput, DetectedRisk, VettingResult } from '@nexclaw/shared';
 import type { Prisma } from '@prisma/client';
-import { HTTP_STATUS } from '@openclaw/shared';
-import { logger } from '@openclaw/config';
+import { HTTP_STATUS } from '@nexclaw/shared';
+import { logger } from '@nexclaw/config';
 import { prisma } from '../../db/client.js';
 import { auditRepository } from '../../repositories/audit.repository.js';
 import { AppError } from '../../utils/app-error.js';

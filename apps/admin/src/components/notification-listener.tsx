@@ -53,7 +53,7 @@ export function NotificationListener() {
 
   const onNewConversation = useCallback(() => {
     toast('info', 'New conversation started');
-    sendBrowserNotification('OpenClaw', 'A new conversation has been started.');
+    sendBrowserNotification('NexClaw', 'A new conversation has been started.');
   }, [toast]);
 
   const onConversationMessage = useCallback((data: unknown) => {
@@ -67,7 +67,7 @@ export function NotificationListener() {
     if (evt.status === 'failed') {
       const name = evt.queueName ?? evt.name ?? 'Unknown';
       toast('error', `Job failed: ${name}`);
-      sendBrowserNotification('OpenClaw — Job Failed', `Job "${name}" has failed.`);
+      sendBrowserNotification('NexClaw — Job Failed', `Job "${name}" has failed.`);
     } else if (evt.status === 'completed') {
       toast('success', `Job completed: ${evt.queueName ?? evt.name ?? 'Unknown'}`);
     }
@@ -77,7 +77,7 @@ export function NotificationListener() {
     const evt = data as SkillUpdatedEvent;
     if (evt.action === 'ingestion_blocked' || evt.action === 'execution_blocked') {
       toast('error', `Skill blocked: ${evt.slug ?? evt.id ?? 'Unknown'}`);
-      sendBrowserNotification('OpenClaw — Skill Blocked', `Skill "${evt.slug ?? ''}" was blocked.`);
+      sendBrowserNotification('NexClaw — Skill Blocked', `Skill "${evt.slug ?? ''}" was blocked.`);
     } else {
       toast('info', `Skill updated: ${evt.slug ?? evt.id ?? 'Unknown'}`);
     }
@@ -87,7 +87,7 @@ export function NotificationListener() {
     const evt = data as { key?: string; status?: string };
     if (evt.status === 'error' || evt.status === 'degraded') {
       toast('error', `Integration issue: ${evt.key ?? 'Unknown'} is ${evt.status}`);
-      sendBrowserNotification('OpenClaw — Integration Issue', `${evt.key ?? 'Integration'} is ${evt.status}.`);
+      sendBrowserNotification('NexClaw — Integration Issue', `${evt.key ?? 'Integration'} is ${evt.status}.`);
     }
   }, [toast]);
 

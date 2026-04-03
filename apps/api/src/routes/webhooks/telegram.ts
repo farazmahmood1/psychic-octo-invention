@@ -1,9 +1,9 @@
 import { Router } from 'express';
 import type { Request, Response } from 'express';
 import { timingSafeEqual } from 'node:crypto';
-import { env, logger } from '@openclaw/config';
-import { HTTP_STATUS } from '@openclaw/shared';
-import type { TelegramUpdate } from '@openclaw/shared';
+import { env, logger } from '@nexclaw/config';
+import { HTTP_STATUS } from '@nexclaw/shared';
+import type { TelegramUpdate } from '@nexclaw/shared';
 import { processTelegramUpdate } from '../../integrations/telegram/processor.js';
 
 export const telegramWebhookRouter = Router();

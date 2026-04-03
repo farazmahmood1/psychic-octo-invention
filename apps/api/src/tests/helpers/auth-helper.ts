@@ -2,12 +2,12 @@
  * Test helper: creates an Express Request mock with an authenticated session.
  */
 import type { Request, Response } from 'express';
-import type { SessionUser } from '@openclaw/shared';
+import type { SessionUser } from '@nexclaw/shared';
 
 export function createMockSessionUser(overrides: Partial<SessionUser> = {}): SessionUser {
   return {
     id: 'admin-test-001',
-    email: 'admin@openclaw.dev',
+    email: 'admin@nexclaw.dev',
     role: 'super_admin',
     displayName: 'Test Admin',
     ...overrides,

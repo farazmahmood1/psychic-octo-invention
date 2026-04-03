@@ -1,4 +1,4 @@
-import type { InboundEvent } from '@openclaw/shared';
+import type { InboundEvent } from '@nexclaw/shared';
 import type { Prisma } from '@prisma/client';
 import { prisma } from '../db/client.js';
 import { sseHub } from '../services/sse.service.js';

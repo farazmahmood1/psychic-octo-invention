@@ -1,5 +1,5 @@
-import { logger } from '@openclaw/config';
-import type { ChannelDeliveryResult } from '@openclaw/shared';
+import { logger } from '@nexclaw/config';
+import type { ChannelDeliveryResult } from '@nexclaw/shared';
 import type { Prisma } from '@prisma/client';
 import { prisma } from '../../db/client.js';
 import { sendMessage } from '../../integrations/telegram/index.js';

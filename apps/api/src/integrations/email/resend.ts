@@ -3,8 +3,8 @@ import type {
   EmailReceivedEvent,
   GetReceivingEmailResponseSuccess,
 } from 'resend';
-import type { InboundEmailPayload } from '@openclaw/shared';
-import { env } from '@openclaw/config';
+import type { InboundEmailPayload } from '@nexclaw/shared';
+import { env } from '@nexclaw/config';
 import { normalizeMailboxList, parseMailbox } from './address.js';
 
 interface ResendWebhookHeaders {

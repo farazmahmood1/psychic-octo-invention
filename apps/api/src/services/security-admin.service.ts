@@ -1,4 +1,4 @@
-import type { SecurityEvent, SkillOverrideRecord, SecurityEventsQuery } from '@openclaw/shared';
+import type { SecurityEvent, SkillOverrideRecord, SecurityEventsQuery } from '@nexclaw/shared';
 import { prisma } from '../db/client.js';
 
 export async function listBlockedAttempts(query: SecurityEventsQuery) {

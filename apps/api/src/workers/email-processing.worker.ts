@@ -1,4 +1,4 @@
-import { logger } from '@openclaw/config';
+import { logger } from '@nexclaw/config';
 import type { Prisma } from '@prisma/client';
 import type { EmailProcessingJobPayload, EmailProcessingJobResult } from '../jobs/email-processing.job.js';
 import { toEmailJobResult, toEmailJobError } from '../jobs/email-processing.job.js';

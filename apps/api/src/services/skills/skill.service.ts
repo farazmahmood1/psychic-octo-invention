@@ -1,8 +1,8 @@
-import type { SkillSummary, VettingRecord } from '@openclaw/shared';
+import type { SkillSummary, VettingRecord } from '@nexclaw/shared';
 import { skillRepository } from '../../repositories/skill.repository.js';
 import { auditRepository } from '../../repositories/audit.repository.js';
 import { AppError } from '../../utils/app-error.js';
-import { HTTP_STATUS } from '@openclaw/shared';
+import { HTTP_STATUS } from '@nexclaw/shared';
 
 function resolveDisplayVersion(skill: Awaited<ReturnType<typeof skillRepository.findById>>) {
   if (!skill) return null;

@@ -1,9 +1,9 @@
-import type { MessageRecord, MessageListQuery } from '@openclaw/shared';
+import type { MessageRecord, MessageListQuery } from '@nexclaw/shared';
 import type { MessageDirection, MessageStatus } from '@prisma/client';
 import { messageRepository } from '../repositories/message.repository.js';
 import { conversationRepository } from '../repositories/conversation.repository.js';
 import { AppError } from '../utils/app-error.js';
-import { HTTP_STATUS } from '@openclaw/shared';
+import { HTTP_STATUS } from '@nexclaw/shared';
 
 export async function listMessages(conversationId: string, query: MessageListQuery) {
   const conversation = await conversationRepository.findById(conversationId);

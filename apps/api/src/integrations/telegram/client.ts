@@ -1,5 +1,5 @@
-import { env, logger } from '@openclaw/config';
-import type { TelegramSendResult, TelegramUpdate } from '@openclaw/shared';
+import { env, logger } from '@nexclaw/config';
+import type { TelegramSendResult, TelegramUpdate } from '@nexclaw/shared';
 
 const TELEGRAM_API_BASE_ROOT = env.TELEGRAM_API_BASE_URL.replace(/\/+$/, '');
 const TELEGRAM_API_BASE = `${TELEGRAM_API_BASE_ROOT}/bot${env.TELEGRAM_BOT_TOKEN}`;

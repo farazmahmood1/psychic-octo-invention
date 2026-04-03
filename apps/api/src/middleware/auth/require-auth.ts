@@ -1,5 +1,5 @@
 import type { Request, Response, NextFunction } from 'express';
-import { HTTP_STATUS } from '@openclaw/shared';
+import { HTTP_STATUS } from '@nexclaw/shared';
 
 /** Rejects requests without a valid session */
 export function requireAuth(req: Request, res: Response, next: NextFunction) {

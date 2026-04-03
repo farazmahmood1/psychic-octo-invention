@@ -67,7 +67,7 @@ All list endpoints accept `page` (default: 1) and `pageSize` (default: 20, max: 
 - `POST /api/v1/auth/login` — Admin login (rate-limited: 10 attempts per 15min)
   - Body: `{ email: string, password: string }`
   - Response: `{ data: { user: { id, email, role, displayName } } }`
-  - Sets cookies: `openclaw.sid` (httpOnly session), `openclaw.csrf` (JS-readable)
+  - Sets cookies: `nexclaw.sid` (httpOnly session), `nexclaw.csrf` (JS-readable)
 - `POST /api/v1/auth/logout` — Logout (clears session)
   - Response: `{ data: { message: "Logged out" } }`
 - `GET /api/v1/auth/me` — Current user (requires auth)

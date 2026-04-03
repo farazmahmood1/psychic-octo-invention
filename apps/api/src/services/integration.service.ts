@@ -1,12 +1,12 @@
-import type { IntegrationHealth } from '@openclaw/shared';
-import { integrationConfigured } from '@openclaw/config';
+import type { IntegrationHealth } from '@nexclaw/shared';
+import { integrationConfigured } from '@nexclaw/config';
 import { integrationRepository } from '../repositories/integration.repository.js';
 import { checkDatabaseHealth } from '../db/health.js';
 import { checkRedisHealth } from '../db/redis.js';
 import { verifyGhlConnection } from '../integrations/ghl/index.js';
 import { verifySheetsConnection } from '../integrations/google/index.js';
 import { AppError } from '../utils/app-error.js';
-import { HTTP_STATUS } from '@openclaw/shared';
+import { HTTP_STATUS } from '@nexclaw/shared';
 
 interface IntegrationDef {
   key: string;

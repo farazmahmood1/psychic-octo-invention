@@ -9,7 +9,7 @@
       "Bash(npx vitest run:*)",
       "Bash(docker:*)",
       "Bash(curl:*)",
-      "Bash(printf '{\"\"\"\"email\"\"\"\":\"\"\"\"admin00123456@mail.com\"\"\"\",\"\"\"\"password\"\"\"\":\"\"\"\"OpenClawAdmin123!\"\"\"\"}')",
+      "Bash(printf '{\"\"\"\"email\"\"\"\":\"\"\"\"admin00123456@mail.com\"\"\"\",\"\"\"\"password\"\"\"\":\"\"\"\"NexClawAdmin123!\"\"\"\"}')",
       "Bash(npx tsx -e \":*)",
       "Bash(npx tsx:*)",
       "Bash(python -c \"import sys,json; data=json.load\\(sys.stdin\\); print\\(data[''''tunnels''''][0][''''public_url'''']\\)\")",

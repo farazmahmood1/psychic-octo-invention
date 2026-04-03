@@ -1,4 +1,4 @@
-export const SERVICE_NAME = 'openclaw-admin-system';
+export const SERVICE_NAME = 'nexclaw-admin-system';
 
 export const API_PREFIX = '/api/v1';
 

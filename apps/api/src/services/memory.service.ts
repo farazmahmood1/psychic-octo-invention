@@ -1,4 +1,4 @@
-import type { MemorySearchResult, MemorySearchQuery } from '@openclaw/shared';
+import type { MemorySearchResult, MemorySearchQuery } from '@nexclaw/shared';
 import { memoryRepository } from '../repositories/memory.repository.js';
 
 export async function searchMemory(query: MemorySearchQuery) {

@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import type { Request, Response, NextFunction } from 'express';
-import { authConfig } from '@openclaw/config';
-import { HTTP_STATUS, loginRequestSchema, changePasswordSchema } from '@openclaw/shared';
+import { authConfig } from '@nexclaw/config';
+import { HTTP_STATUS, loginRequestSchema, changePasswordSchema } from '@nexclaw/shared';
 import { login, logout, changePassword } from '../services/auth.service.js';
 import { requireAuth } from '../middleware/auth/require-auth.js';
 import { loginRateLimit } from '../middleware/auth/login-rate-limit.js';

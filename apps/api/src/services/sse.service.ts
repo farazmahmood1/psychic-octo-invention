@@ -1,5 +1,5 @@
 import type { Response } from 'express';
-import { logger } from '@openclaw/config';
+import { logger } from '@nexclaw/config';
 
 export type SseEventType =
   | 'conversation:new'

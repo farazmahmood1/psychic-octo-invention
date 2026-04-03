@@ -3,8 +3,8 @@ import type {
   TelegramMessage,
   InboundEvent,
   Attachment,
-} from '@openclaw/shared';
-import { logger } from '@openclaw/config';
+} from '@nexclaw/shared';
+import { logger } from '@nexclaw/config';
 import { getFileUrl } from './client.js';
 
 /**

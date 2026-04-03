@@ -1,4 +1,4 @@
-import type { BookkeepingSubAgentInput, BookkeepingSubAgentOutput } from '@openclaw/shared';
+import type { BookkeepingSubAgentInput, BookkeepingSubAgentOutput } from '@nexclaw/shared';
 
 /**
  * Job payload for the bookkeeping sub-agent queue.

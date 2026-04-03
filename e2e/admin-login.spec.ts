@@ -11,7 +11,7 @@
  */
 import { test, expect } from '@playwright/test';
 
-const ADMIN_EMAIL = process.env.E2E_ADMIN_EMAIL ?? process.env.ADMIN_SEED_EMAIL ?? 'admin@openclaw.dev';
+const ADMIN_EMAIL = process.env.E2E_ADMIN_EMAIL ?? process.env.ADMIN_SEED_EMAIL ?? 'admin@nexclaw.dev';
 const ADMIN_PASSWORD = process.env.E2E_ADMIN_PASSWORD ?? process.env.ADMIN_SEED_PASSWORD ?? 'AdminP@ssw0rd!234';
 
 test.describe('Admin Portal E2E', () => {
@@ -20,7 +20,7 @@ test.describe('Admin Portal E2E', () => {
   test('STORY-UI1: login and reach dashboard', async ({ page }) => {
     // Navigate to login
     await page.goto('/login');
-    await expect(page.getByText('OpenClaw Admin')).toBeVisible();
+    await expect(page.getByText('NexClaw Admin')).toBeVisible();
     await expect(page.getByText('Sign in to your admin account')).toBeVisible();
 
     // Fill login form

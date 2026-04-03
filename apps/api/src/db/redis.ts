@@ -1,5 +1,5 @@
 import { Redis } from 'ioredis';
-import { env, logger, integrationConfigured } from '@openclaw/config';
+import { env, logger, integrationConfigured } from '@nexclaw/config';
 
 let redis: Redis | null = null;
 

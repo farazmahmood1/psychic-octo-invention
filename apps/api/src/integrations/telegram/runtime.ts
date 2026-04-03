@@ -1,4 +1,4 @@
-import { env, logger } from '@openclaw/config';
+import { env, logger } from '@nexclaw/config';
 import { deleteWebhook, getUpdates, setWebhook } from './client.js';
 import { processTelegramUpdate } from './processor.js';
 

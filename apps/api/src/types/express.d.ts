@@ -1,4 +1,4 @@
-import type { SessionUser } from '@openclaw/shared';
+import type { SessionUser } from '@nexclaw/shared';
 
 declare global {
   namespace Express {

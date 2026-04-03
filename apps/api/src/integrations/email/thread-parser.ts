@@ -1,4 +1,4 @@
-import type { ParsedEmailThread, ThreadSegment } from '@openclaw/shared';
+import type { ParsedEmailThread, ThreadSegment } from '@nexclaw/shared';
 
 /**
  * Parse email body to separate current message from quoted/forwarded history.

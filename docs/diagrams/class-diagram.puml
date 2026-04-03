@@ -1,6 +1,6 @@
-@startuml OpenClaw Admin System - Class Diagram
+@startuml NexClaw Admin System - Class Diagram
 
-title OpenClaw Admin System — Class Diagram
+title NexClaw Admin System — Class Diagram
 
 skinparam classAttributeIconSize 0
 skinparam class {

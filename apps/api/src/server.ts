@@ -1,4 +1,4 @@
-import { env, integrationConfigured, logger } from '@openclaw/config';
+import { env, integrationConfigured, logger } from '@nexclaw/config';
 import { createApp } from './app.js';
 import { prisma } from './db/client.js';
 import { closeRedis } from './db/redis.js';

@@ -1,12 +1,12 @@
-import { env, logger } from '@openclaw/config';
+import { env, logger } from '@nexclaw/config';
 import type {
   BookkeepingSubAgentInput,
   BookkeepingSubAgentOutput,
   ReceiptExtractionData,
   BookkeepingSheetRow,
   SubAgentDispatch,
-} from '@openclaw/shared';
-import { BOOKKEEPING_CATEGORIES } from '@openclaw/shared';
+} from '@nexclaw/shared';
+import { BOOKKEEPING_CATEGORIES } from '@nexclaw/shared';
 import { receiptExtractionRepository } from '../../../repositories/receipt-extraction.repository.js';
 import { extractReceiptData } from '../../vision/index.js';
 import { appendBookkeepingRow } from '../../../integrations/google/index.js';

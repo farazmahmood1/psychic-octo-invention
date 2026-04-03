@@ -1,4 +1,4 @@
-import { logger } from '@openclaw/config';
+import { logger } from '@nexclaw/config';
 import type {
   SubAgentDispatch,
   ToolDispatch,
@@ -6,8 +6,8 @@ import type {
   BookkeepingSubAgentInput,
   FollowUpSubAgentInput,
   LlmToolCall,
-} from '@openclaw/shared';
-import { GHL_CRM_TOOL_NAME, BOOKKEEPING_TOOL_NAME, FOLLOWUP_TOOL_NAME } from '@openclaw/shared';
+} from '@nexclaw/shared';
+import { GHL_CRM_TOOL_NAME, BOOKKEEPING_TOOL_NAME, FOLLOWUP_TOOL_NAME } from '@nexclaw/shared';
 import { processGhlDispatch, processBookkeepingDispatch, processFollowUpDispatch } from '../services/subagents/index.js';
 import { subAgentTaskRepository } from '../repositories/sub-agent-task.repository.js';
 import { getFirstPartyToolSettings, isFirstPartyToolEnabled } from '../services/settings.service.js';

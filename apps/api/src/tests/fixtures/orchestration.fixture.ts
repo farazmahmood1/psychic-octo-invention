@@ -1,7 +1,7 @@
 /**
  * Orchestration and routing fixtures for integration tests.
  */
-import type { InboundEvent, ExecutionResult, RoutingDecision, LlmUsage } from '@openclaw/shared';
+import type { InboundEvent, ExecutionResult, RoutingDecision, LlmUsage } from '@nexclaw/shared';
 
 export function createInboundEvent(overrides: Partial<InboundEvent> = {}): InboundEvent {
   return {

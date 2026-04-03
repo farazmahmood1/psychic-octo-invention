@@ -9,7 +9,7 @@ services:
       - .env
     environment:
       - REDIS_URL=redis://redis:6379
-      - DATABASE_URL=postgresql://openclaw:openclaw_dev@postgres:5432/openclaw_dev
+      - DATABASE_URL=postgresql://nexclaw:nexclaw_dev@postgres:5432/nexclaw_dev
     depends_on:
       redis:
         condition: service_healthy
@@ -35,7 +35,7 @@ services:
       - .env
     environment:
       - REDIS_URL=redis://redis:6379
-      - DATABASE_URL=postgresql://openclaw:openclaw_dev@postgres:5432/openclaw_dev
+      - DATABASE_URL=postgresql://nexclaw:nexclaw_dev@postgres:5432/nexclaw_dev
     depends_on:
       redis:
         condition: service_healthy
@@ -68,13 +68,13 @@ services:
     ports:
       - '5432:5432'
     environment:
-      POSTGRES_USER: openclaw
-      POSTGRES_PASSWORD: openclaw_dev
-      POSTGRES_DB: openclaw_dev
+      POSTGRES_USER: nexclaw
+      POSTGRES_PASSWORD: nexclaw_dev
+      POSTGRES_DB: nexclaw_dev
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U openclaw -d openclaw_dev']
+      test: ['CMD-SHELL', 'pg_isready -U nexclaw -d nexclaw_dev']
       interval: 10s
       timeout: 3s
       retries: 3

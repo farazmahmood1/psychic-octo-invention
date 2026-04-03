@@ -1,7 +1,7 @@
-import type { LlmToolDefinition } from '@openclaw/shared';
-import { GHL_CRM_TOOL_NAME, GHL_EDITABLE_FIELDS, BOOKKEEPING_TOOL_NAME, BOOKKEEPING_CATEGORIES, FOLLOWUP_TOOL_NAME } from '@openclaw/shared';
+import type { LlmToolDefinition } from '@nexclaw/shared';
+import { GHL_CRM_TOOL_NAME, GHL_EDITABLE_FIELDS, BOOKKEEPING_TOOL_NAME, BOOKKEEPING_CATEGORIES, FOLLOWUP_TOOL_NAME } from '@nexclaw/shared';
 import { prisma } from '../db/client.js';
-import { logger } from '@openclaw/config';
+import { logger } from '@nexclaw/config';
 import { skillExecutionGuard } from '../security/execution-guard.js';
 import { getFirstPartyToolSettings, isFirstPartyToolEnabled } from '../services/settings.service.js';
 

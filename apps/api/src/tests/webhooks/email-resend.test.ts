@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import express from 'express';
 import supertest from 'supertest';
-import { env } from '@openclaw/config';
+import { env } from '@nexclaw/config';
 import { createResendEmailReceivedEvent, createResendReceivingEmail } from '../fixtures/resend.fixture.js';
 
 const mocks = vi.hoisted(() => ({

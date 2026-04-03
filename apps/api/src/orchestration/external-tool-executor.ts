@@ -1,6 +1,6 @@
 import { Script, createContext } from 'node:vm';
-import { logger } from '@openclaw/config';
-import type { LlmToolCall, ToolDispatch } from '@openclaw/shared';
+import { logger } from '@nexclaw/config';
+import type { LlmToolCall, ToolDispatch } from '@nexclaw/shared';
 import { auditRepository } from '../repositories/audit.repository.js';
 import { skillExecutionGuard } from '../security/execution-guard.js';
 import type { ExternalSkillToolRuntime } from './tool-resolver.js';

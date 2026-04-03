@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import type { SecurityEvent, SkillOverrideRecord, PaginatedResponse } from '@openclaw/shared';
+import type { SecurityEvent, SkillOverrideRecord, PaginatedResponse } from '@nexclaw/shared';
 import { PageHeader } from '@/components/page-header';
 import { DataTable, type Column } from '@/components/data-table';
 import { Badge } from '@/components/ui/badge';

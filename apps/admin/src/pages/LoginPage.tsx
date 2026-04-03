@@ -48,9 +48,9 @@ export function LoginPage() {
       {/* Card + Mascot container */}
       <div className="relative mx-4 w-full max-w-md">
         {/* Clawdbot peeking from the right */}
-        <div className="absolute -right-8 -top-16 z-10 hidden sm:block md:-right-16">
+        {/* <div className="absolute -right-8 -top-16 z-10 hidden sm:block md:-right-16">
           <ClawdbotMascot className="h-40 w-auto drop-shadow-2xl transition-transform duration-500 hover:scale-110 md:h-48" />
-        </div>
+        </div> */}
 
         {/* Glass card */}
         <div className="relative rounded-3xl border border-white/20 bg-white/10 p-8 shadow-2xl shadow-black/20 backdrop-blur-xl">
@@ -67,7 +67,7 @@ export function LoginPage() {
                   <path d="M2 12l10 5 10-5" />
                 </svg>
               </div>
-              <h1 className="text-2xl font-bold tracking-tight text-white">OpenClaw Admin</h1>
+              <h1 className="text-2xl font-bold tracking-tight text-white">NexClaw Admin</h1>
               <p className="mt-1 text-sm text-[#7BBFFF]/80">Sign in to your admin account</p>
             </div>
 
@@ -134,7 +134,7 @@ export function LoginPage() {
 
             {/* Footer */}
             <p className="mt-6 text-center text-xs text-white/30">
-              Secured by OpenClaw
+              Secured by NexClaw
             </p>
           </div>
         </div>

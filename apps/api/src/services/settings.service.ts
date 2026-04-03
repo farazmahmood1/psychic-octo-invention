@@ -3,12 +3,12 @@ import type {
   RoutingSettingsInput,
   FirstPartyToolSettings,
   FirstPartyToolSettingsInput,
-} from '@openclaw/shared';
+} from '@nexclaw/shared';
 import {
   GHL_CRM_TOOL_NAME,
   BOOKKEEPING_TOOL_NAME,
   FOLLOWUP_TOOL_NAME,
-} from '@openclaw/shared';
+} from '@nexclaw/shared';
 import { settingRepository } from '../repositories/setting.repository.js';
 import { auditRepository } from '../repositories/audit.repository.js';
 

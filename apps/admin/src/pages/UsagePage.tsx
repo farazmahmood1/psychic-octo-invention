@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import type { UsageSummaryResponse, UsageTimeseriesBucket } from '@openclaw/shared';
+import type { UsageSummaryResponse, UsageTimeseriesBucket } from '@nexclaw/shared';
 import { DollarSign, Cpu, Zap, TrendingUp, Clock, Download } from 'lucide-react';
 import { PageHeader } from '@/components/page-header';
 import { MetricCard } from '@/components/metric-card';

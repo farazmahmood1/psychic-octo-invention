@@ -1,4 +1,4 @@
-import { env, logger } from '@openclaw/config';
+import { env, logger } from '@nexclaw/config';
 import type {
   GhlContact,
   GhlContactSearchResult,
@@ -53,7 +53,7 @@ import type {
   GhlSurveySubmission,
   GhlApiSurveysResponse,
   GhlApiSurveySubmissionsResponse,
-} from '@openclaw/shared';
+} from '@nexclaw/shared';
 
 const TIMEOUT_MS = 30_000;
 const MAX_RETRIES = 2;

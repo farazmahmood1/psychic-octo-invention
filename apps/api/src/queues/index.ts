@@ -1,6 +1,6 @@
 import { Queue, Worker, type ConnectionOptions, type WorkerOptions } from 'bullmq';
-import { logger, integrationConfigured } from '@openclaw/config';
-import { env } from '@openclaw/config';
+import { logger, integrationConfigured } from '@nexclaw/config';
+import { env } from '@nexclaw/config';
 import { QUEUES, type QueueName } from '../jobs/index.js';
 import { processOrchestrationJob } from '../workers/orchestration.worker.js';
 import { processDeliveryJob } from '../workers/channel-delivery.worker.js';

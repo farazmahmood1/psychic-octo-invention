@@ -1,5 +1,5 @@
 import type { Request, Response, NextFunction } from 'express';
-import { env } from '@openclaw/config';
+import { env } from '@nexclaw/config';
 
 /** Set a per-request timeout. Responds 408 if exceeded. */
 export function requestTimeout(req: Request, res: Response, next: NextFunction) {

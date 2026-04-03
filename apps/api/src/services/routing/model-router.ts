@@ -1,4 +1,4 @@
-import { logger } from '@openclaw/config';
+import { logger } from '@nexclaw/config';
 import type {
   InboundEvent,
   RoutingDecision,
@@ -6,13 +6,13 @@ import type {
   ModelTier,
   RoutingSettings,
   LlmToolDefinition,
-} from '@openclaw/shared';
+} from '@nexclaw/shared';
 import {
   GHL_CRM_TOOL_NAME,
   BOOKKEEPING_TOOL_NAME,
   BOOKKEEPING_CATEGORIES,
   FOLLOWUP_TOOL_NAME,
-} from '@openclaw/shared';
+} from '@nexclaw/shared';
 import { getRoutingSettings } from '../settings.service.js';
 
 // ── Model Catalog ────────────────────────────────────────────

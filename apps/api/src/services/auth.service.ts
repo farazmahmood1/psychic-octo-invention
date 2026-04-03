@@ -1,8 +1,8 @@
 import { randomBytes, createHash, timingSafeEqual } from 'node:crypto';
 import * as argon2 from 'argon2';
 import type { Prisma } from '@prisma/client';
-import { authConfig } from '@openclaw/config';
-import type { SessionUser } from '@openclaw/shared';
+import { authConfig } from '@nexclaw/config';
+import type { SessionUser } from '@nexclaw/shared';
 import { adminRepository } from '../repositories/admin.repository.js';
 import { sessionRepository } from '../repositories/session.repository.js';
 import { auditRepository } from '../repositories/audit.repository.js';

@@ -1,5 +1,5 @@
 {
-  "name": "@openclaw/api",
+  "name": "@nexclaw/api",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -12,8 +12,8 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@openclaw/config": "*",
-    "@openclaw/shared": "*",
+    "@nexclaw/config": "*",
+    "@nexclaw/shared": "*",
     "@prisma/client": "^5.12.0",
     "argon2": "^0.44.0",
     "bullmq": "^5.70.4",

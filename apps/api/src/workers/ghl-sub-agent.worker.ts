@@ -1,5 +1,5 @@
-import { logger } from '@openclaw/config';
-import { GHL_CRM_TOOL_NAME } from '@openclaw/shared';
+import { logger } from '@nexclaw/config';
+import { GHL_CRM_TOOL_NAME } from '@nexclaw/shared';
 import type { GhlSubAgentJobPayload, GhlSubAgentJobResult } from '../jobs/ghl-sub-agent.job.js';
 import { toGhlJobResult, toGhlJobError } from '../jobs/ghl-sub-agent.job.js';
 import { executeGhlTask } from '../services/subagents/index.js';

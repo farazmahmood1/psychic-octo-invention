@@ -1,6 +1,6 @@
 import type { Response } from 'express';
-import { HTTP_STATUS } from '@openclaw/shared';
-import type { PaginationMeta } from '@openclaw/shared';
+import { HTTP_STATUS } from '@nexclaw/shared';
+import type { PaginationMeta } from '@nexclaw/shared';
 
 /** Send a success response with data */
 export function sendData<T>(res: Response, data: T, status: number = HTTP_STATUS.OK): void {

@@ -1,4 +1,4 @@
-import type { ReceiptExtractionData } from '@openclaw/shared';
+import type { ReceiptExtractionData } from '@nexclaw/shared';
 
 /**
  * Validate and normalize an extracted receipt amount.

@@ -1,6 +1,6 @@
-@startuml OpenClaw Admin System - Activity Diagram
+@startuml NexClaw Admin System - Activity Diagram
 
-title OpenClaw Admin System — Activity Diagram (Key Workflows)
+title NexClaw Admin System — Activity Diagram (Key Workflows)
 
 |#E8F5E9| Frontend (Admin Portal) |
 |#FFF3E0| Backend (API) |
@@ -38,8 +38,8 @@ partition "**1. Authentication Flow**" {
           :Generate CSRF token\n(random 24 bytes hex);
           :Create AdminSession record;
           :Update Admin.lastLoginAt\n& lastLoginIp;
-          :Set httpOnly cookie:\n**openclaw.session**;
-          :Set readable cookie:\n**openclaw.csrf**;
+          :Set httpOnly cookie:\n**nexclaw.session**;
+          :Set readable cookie:\n**nexclaw.csrf**;
           :Write AuditLog entry\n(admin.login);
 
           |Frontend (Admin Portal)|

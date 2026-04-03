@@ -1,4 +1,4 @@
-import type { InboundEvent, ExecutionResult } from '@openclaw/shared';
+import type { InboundEvent, ExecutionResult } from '@nexclaw/shared';
 
 /**
  * Job payload for the orchestration queue.

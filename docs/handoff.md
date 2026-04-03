@@ -4,7 +4,7 @@
 
 ## System Overview
 
-OpenClaw Admin System is a production-ready AI-powered admin platform with:
+NexClaw Admin System is a production-ready AI-powered admin platform with:
 - Multi-channel messaging (Telegram, Email)
 - AI orchestration with model routing (cheap/standard/strong)
 - Three sub-agents: GHL CRM, Bookkeeping, Lead Follow-Up
@@ -19,7 +19,7 @@ See `architecture.md` for detailed technical architecture.
 
 ```bash
 # 1. Clone and configure
-git clone <repo-url> && cd openclaw-admin-system
+git clone <repo-url> && cd nexclaw-admin-system
 cp .env.example .env    # Fill in values
 
 # 2. Install and set up
@@ -236,18 +236,18 @@ See `deployment.md` for full deployment instructions.
 
 ```bash
 # Build images
-docker build --target api -t openclaw-api .
-docker build --target worker -t openclaw-worker .
-docker build --target admin -t openclaw-admin .
-docker build --target migrate -t openclaw-migrate .
+docker build --target api -t nexclaw-api .
+docker build --target worker -t nexclaw-worker .
+docker build --target admin -t nexclaw-admin .
+docker build --target migrate -t nexclaw-migrate .
 
 # Run migration
-docker run --rm --env-file .env openclaw-migrate
+docker run --rm --env-file .env nexclaw-migrate
 
 # Start services
-docker run -d -p 4000:4000 --env-file .env openclaw-api
-docker run -d --env-file .env openclaw-worker
-docker run -d -p 80:80 openclaw-admin
+docker run -d -p 4000:4000 --env-file .env nexclaw-api
+docker run -d --env-file .env nexclaw-worker
+docker run -d -p 80:80 nexclaw-admin
 ```
 
 ---

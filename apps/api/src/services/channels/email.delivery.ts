@@ -1,5 +1,5 @@
-import { env, logger } from '@openclaw/config';
-import type { ChannelDeliveryResult } from '@openclaw/shared';
+import { env, logger } from '@nexclaw/config';
+import type { ChannelDeliveryResult } from '@nexclaw/shared';
 import type { Prisma } from '@prisma/client';
 import { prisma } from '../../db/client.js';
 import { sendEmail, buildReferencesHeader, ensureReplySubject } from '../../integrations/email/index.js';

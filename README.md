@@ -1,6 +1,6 @@
-# OpenClaw Admin System
+# NexClaw Admin System
 
-OpenClaw Admin System is a monorepo for a multi-channel AI assistant with:
+NexClaw Admin System is a monorepo for a multi-channel AI assistant with:
 - Telegram + Email channels
 - OpenRouter model routing
 - Persistent memory

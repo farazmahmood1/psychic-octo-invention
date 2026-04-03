@@ -1,4 +1,4 @@
-import type { FollowUpSubAgentInput, FollowUpSubAgentOutput } from '@openclaw/shared';
+import type { FollowUpSubAgentInput, FollowUpSubAgentOutput } from '@nexclaw/shared';
 
 /**
  * Job payload for the lead follow-up sub-agent queue.

@@ -1,6 +1,6 @@
 import { z } from 'zod';
-import { GHL_EDITABLE_FIELDS } from '@openclaw/shared';
-import type { GhlEditableField } from '@openclaw/shared';
+import { GHL_EDITABLE_FIELDS } from '@nexclaw/shared';
+import type { GhlEditableField } from '@nexclaw/shared';
 
 /**
  * Phone number normalization.

@@ -1,5 +1,5 @@
 import pinoHttpLib from 'pino-http';
-import { logger } from '@openclaw/config';
+import { logger } from '@nexclaw/config';
 import type { ServerResponse, IncomingMessage } from 'http';
 
 /** Structured HTTP request logging with correlation IDs */

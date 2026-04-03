@@ -1,4 +1,4 @@
-import type { DetectedRisk } from '@openclaw/shared';
+import type { DetectedRisk } from '@nexclaw/shared';
 
 /**
  * Layered static analysis scanner for skill source code.

@@ -1,7 +1,7 @@
 /**
  * Realistic Telegram webhook payload fixtures.
  */
-import type { TelegramUpdate } from '@openclaw/shared';
+import type { TelegramUpdate } from '@nexclaw/shared';
 
 export function createTelegramTextUpdate(overrides: Partial<TelegramUpdate> = {}): TelegramUpdate {
   return {

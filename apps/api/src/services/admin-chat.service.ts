@@ -1,10 +1,10 @@
 import { randomUUID } from 'node:crypto';
-import { logger } from '@openclaw/config';
-import type { InboundEvent } from '@openclaw/shared';
+import { logger } from '@nexclaw/config';
+import type { InboundEvent } from '@nexclaw/shared';
 import { executeEvent } from '../orchestration/orchestrator.js';
 import { conversationRepository } from '../repositories/conversation.repository.js';
 import { AppError } from '../utils/app-error.js';
-import { HTTP_STATUS } from '@openclaw/shared';
+import { HTTP_STATUS } from '@nexclaw/shared';
 
 interface SendAdminMessageInput {
   conversationId?: string;

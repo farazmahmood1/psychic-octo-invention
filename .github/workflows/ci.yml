@@ -33,7 +33,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       NODE_ENV: test
-      DATABASE_URL: postgresql://test:test@localhost:5432/openclaw_test
+      DATABASE_URL: postgresql://test:test@localhost:5432/nexclaw_test
       SESSION_SECRET: ci-test-session-secret-that-is-at-least-32-chars
     steps:
       - uses: actions/checkout@v4
@@ -65,8 +65,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Build API image
-        run: docker build --target api -t openclaw-api:ci .
+        run: docker build --target api -t nexclaw-api:ci .
       - name: Build Worker image
-        run: docker build --target worker -t openclaw-worker:ci .
+        run: docker build --target worker -t nexclaw-worker:ci .
       - name: Build Admin image
-        run: docker build --target admin -t openclaw-admin:ci .
+        run: docker build --target admin -t nexclaw-admin:ci .

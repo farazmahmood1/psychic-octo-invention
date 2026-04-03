@@ -1,4 +1,4 @@
-import type { LlmRequest, LlmResponse } from '@openclaw/shared';
+import type { LlmRequest, LlmResponse } from '@nexclaw/shared';
 
 /**
  * Abstract LLM provider interface.

@@ -2,7 +2,7 @@
 
 ## Overview
 
-OpenClaw Admin System is a monorepo containing:
+NexClaw Admin System is a monorepo containing:
 
 - **apps/api** — Express backend (REST API, webhooks, background jobs, orchestration)
 - **apps/admin** — React admin portal (Vite + Tailwind + shadcn/ui)
@@ -11,7 +11,7 @@ OpenClaw Admin System is a monorepo containing:
 
 ## Key Design Decisions
 
-- OpenClaw is wrapped behind an internal orchestration layer to avoid tight coupling
+- NexClaw is wrapped behind an internal orchestration layer to avoid tight coupling
 - All AI calls are routed through OpenRouter for model flexibility
 - BullMQ + Redis for reliable background job processing
 - Neon Postgres with Prisma for type-safe database access

@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import type { ConversationDetail, MessageRecord, PaginatedResponse } from '@openclaw/shared';
+import type { ConversationDetail, MessageRecord, PaginatedResponse } from '@nexclaw/shared';
 import { PageHeader } from '@/components/page-header';
 import { StatusBadge } from '@/components/status-badge';
 import { ErrorPanel } from '@/components/error-panel';

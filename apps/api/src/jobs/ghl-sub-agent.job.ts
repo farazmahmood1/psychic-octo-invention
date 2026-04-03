@@ -1,4 +1,4 @@
-import type { GhlSubAgentInput, GhlSubAgentOutput } from '@openclaw/shared';
+import type { GhlSubAgentInput, GhlSubAgentOutput } from '@nexclaw/shared';
 
 /**
  * Job payload for the GHL sub-agent queue.

@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react';
-import type { MemorySearchResult, PaginatedResponse } from '@openclaw/shared';
+import type { MemorySearchResult, PaginatedResponse } from '@nexclaw/shared';
 import { Search } from 'lucide-react';
 import { PageHeader } from '@/components/page-header';
 import { DataTable, type Column } from '@/components/data-table';

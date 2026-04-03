@@ -1,7 +1,7 @@
-import type { ConversationSummary, ConversationDetail, ConversationListQuery } from '@openclaw/shared';
+import type { ConversationSummary, ConversationDetail, ConversationListQuery } from '@nexclaw/shared';
 import { conversationRepository } from '../repositories/conversation.repository.js';
 import { AppError } from '../utils/app-error.js';
-import { HTTP_STATUS } from '@openclaw/shared';
+import { HTTP_STATUS } from '@nexclaw/shared';
 
 export async function listConversations(query: ConversationListQuery) {
   const result = await conversationRepository.list({

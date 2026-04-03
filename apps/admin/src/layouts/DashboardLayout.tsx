@@ -146,7 +146,7 @@ export function DashboardLayout() {
         )}
       >
         <div className="flex h-14 items-center justify-between border-b px-6">
-          <h1 className="text-lg font-bold">OpenClaw Admin</h1>
+          <h1 className="text-lg font-bold">NexClaw Admin</h1>
           <Button
             variant="ghost"
             size="sm"

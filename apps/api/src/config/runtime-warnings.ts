@@ -1,4 +1,4 @@
-import { env, integrationConfigured, logger } from '@openclaw/config';
+import { env, integrationConfigured, logger } from '@nexclaw/config';
 
 type ProcessType = 'api' | 'worker';
 

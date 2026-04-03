@@ -1,4 +1,4 @@
-import { logger } from '@openclaw/config';
+import { logger } from '@nexclaw/config';
 import {
   FOLLOWUP_DEFAULT_STALE_DAYS,
   type ChannelDeliveryPayload,
@@ -6,7 +6,7 @@ import {
   type FollowUpSubAgentOutput,
   type FollowUpRecommendation as FollowUpRec,
   type SubAgentDispatch,
-} from '@openclaw/shared';
+} from '@nexclaw/shared';
 import { followUpRecommendationRepository } from '../../../repositories/followup-recommendation.repository.js';
 import { providerRegistry } from '../../llm/index.js';
 import { prisma } from '../../../db/client.js';

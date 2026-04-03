@@ -1,4 +1,4 @@
-import { logger } from '@openclaw/config';
+import { logger } from '@nexclaw/config';
 import type { ChannelDeliveryPayload } from '../jobs/channel-delivery.job.js';
 import type { ChannelDeliveryJobResult } from '../jobs/channel-delivery.job.js';
 import { toDeliveryResult, toDeliveryError } from '../jobs/channel-delivery.job.js';

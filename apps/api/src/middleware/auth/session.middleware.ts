@@ -1,5 +1,5 @@
 import type { Request, Response, NextFunction } from 'express';
-import { authConfig } from '@openclaw/config';
+import { authConfig } from '@nexclaw/config';
 import { validateSession } from '../../services/auth.service.js';
 
 /**

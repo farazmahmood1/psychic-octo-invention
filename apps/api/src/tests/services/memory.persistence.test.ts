@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import type { InboundEvent, LlmResponse } from '@openclaw/shared';
+import type { InboundEvent, LlmResponse } from '@nexclaw/shared';
 
 interface StoredMemory {
   id: string;

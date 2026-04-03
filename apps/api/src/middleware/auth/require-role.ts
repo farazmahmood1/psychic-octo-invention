@@ -1,5 +1,5 @@
 import type { Request, Response, NextFunction } from 'express';
-import { HTTP_STATUS, ROLE_HIERARCHY, type AdminRole } from '@openclaw/shared';
+import { HTTP_STATUS, ROLE_HIERARCHY, type AdminRole } from '@nexclaw/shared';
 
 /**
  * Factory that returns middleware requiring at least the given role level.

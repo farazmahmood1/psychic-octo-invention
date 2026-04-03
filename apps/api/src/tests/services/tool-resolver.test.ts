@@ -3,7 +3,7 @@ import {
   BOOKKEEPING_TOOL_NAME,
   FOLLOWUP_TOOL_NAME,
   GHL_CRM_TOOL_NAME,
-} from '@openclaw/shared';
+} from '@nexclaw/shared';
 
 const {
   skillFindManyMock,

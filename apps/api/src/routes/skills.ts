@@ -6,7 +6,7 @@ import {
   skillIngestSchema,
   skillManualOverrideSchema,
   HTTP_STATUS,
-} from '@openclaw/shared';
+} from '@nexclaw/shared';
 import { requireAuth } from '../middleware/auth/require-auth.js';
 import { requireRole } from '../middleware/auth/require-role.js';
 import { validate } from '../utils/validate.js';

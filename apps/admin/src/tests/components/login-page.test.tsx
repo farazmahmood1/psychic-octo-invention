@@ -34,7 +34,7 @@ describe('STORY-UI1: Login Page', () => {
 
     // Wait for auth check to complete
     await waitFor(() => {
-      expect(screen.getByText('OpenClaw Admin')).toBeInTheDocument();
+      expect(screen.getByText('NexClaw Admin')).toBeInTheDocument();
     });
 
     expect(screen.getByLabelText('Email')).toBeInTheDocument();

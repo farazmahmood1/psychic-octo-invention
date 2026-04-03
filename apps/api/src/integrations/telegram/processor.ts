@@ -1,5 +1,5 @@
-import { logger } from '@openclaw/config';
-import type { TelegramUpdate } from '@openclaw/shared';
+import { logger } from '@nexclaw/config';
+import type { TelegramUpdate } from '@nexclaw/shared';
 import { getRedis } from '../../db/redis.js';
 import { executeEvent } from '../../orchestration/index.js';
 import { telegramChatRepository } from '../../repositories/telegram-chat.repository.js';

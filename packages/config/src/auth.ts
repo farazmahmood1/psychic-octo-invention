@@ -1,8 +1,8 @@
 /** Centralized auth configuration constants */
 export const authConfig = {
   session: {
-    cookieName: 'openclaw.sid',
-    csrfCookieName: 'openclaw.csrf',
+    cookieName: 'nexclaw.sid',
+    csrfCookieName: 'nexclaw.csrf',
     maxAge: 24 * 60 * 60 * 1000, // 24 hours
     secure: process.env['NODE_ENV'] === 'production',
     httpOnly: true,

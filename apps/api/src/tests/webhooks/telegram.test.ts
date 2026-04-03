@@ -4,7 +4,7 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import supertest from 'supertest';
-import { env } from '@openclaw/config';
+import { env } from '@nexclaw/config';
 import {
   createTelegramTextUpdate,
   createTelegramPhotoUpdate,

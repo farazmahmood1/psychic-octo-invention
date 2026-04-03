@@ -4,7 +4,7 @@
  * coexist across multiple namespaces without interference.
  */
 import { describe, it, expect } from 'vitest';
-import type { MemoryFact, MemorySnippet } from '@openclaw/shared';
+import type { MemoryFact, MemorySnippet } from '@nexclaw/shared';
 
 function createMemoryFact(overrides: Partial<MemoryFact> = {}): MemoryFact {
   return {

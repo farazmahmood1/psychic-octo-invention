@@ -1,4 +1,4 @@
-import type { BookkeepingExtractionSummary, BookkeepingListQuery } from '@openclaw/shared';
+import type { BookkeepingExtractionSummary, BookkeepingListQuery } from '@nexclaw/shared';
 import { prisma } from '../db/client.js';
 import type { Prisma } from '@prisma/client';
 

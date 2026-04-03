@@ -61,7 +61,7 @@ const MARKETPLACE_SKILLS: MarketplaceSkill[] = [
     slug: 'web-scraper',
     displayName: 'Smart Web Scraper',
     description: 'Extract structured data from any webpage. Supports CSS selectors, XPath, and automatic content detection. Perfect for lead research and competitive analysis.',
-    author: 'OpenClaw Community',
+    author: 'NexClaw Community',
     version: '2.1.0',
     category: 'web',
     rating: 4.8,
@@ -69,7 +69,7 @@ const MARKETPLACE_SKILLS: MarketplaceSkill[] = [
     verified: true,
     tags: ['scraping', 'data-extraction', 'research'],
     icon: 'globe',
-    sourceUrl: 'https://github.com/openclaw-skills/web-scraper',
+    sourceUrl: 'https://github.com/nexclaw-skills/web-scraper',
     createdAt: '2025-11-15',
   },
   {
@@ -85,7 +85,7 @@ const MARKETPLACE_SKILLS: MarketplaceSkill[] = [
     verified: true,
     tags: ['invoicing', 'pdf', 'finance', 'billing'],
     icon: 'calculator',
-    sourceUrl: 'https://github.com/openclaw-skills/invoice-generator',
+    sourceUrl: 'https://github.com/nexclaw-skills/invoice-generator',
     createdAt: '2025-12-01',
   },
   {
@@ -101,7 +101,7 @@ const MARKETPLACE_SKILLS: MarketplaceSkill[] = [
     verified: true,
     tags: ['calendar', 'scheduling', 'appointments', 'productivity'],
     icon: 'calendar',
-    sourceUrl: 'https://github.com/openclaw-skills/calendar-scheduler',
+    sourceUrl: 'https://github.com/nexclaw-skills/calendar-scheduler',
     createdAt: '2025-10-20',
   },
   {
@@ -117,7 +117,7 @@ const MARKETPLACE_SKILLS: MarketplaceSkill[] = [
     verified: false,
     tags: ['summarization', 'documents', 'pdf', 'nlp'],
     icon: 'file-text',
-    sourceUrl: 'https://github.com/openclaw-skills/doc-summarizer',
+    sourceUrl: 'https://github.com/nexclaw-skills/doc-summarizer',
     createdAt: '2026-01-10',
   },
   {
@@ -133,7 +133,7 @@ const MARKETPLACE_SKILLS: MarketplaceSkill[] = [
     verified: true,
     tags: ['email', 'marketing', 'campaigns', 'outreach'],
     icon: 'mail',
-    sourceUrl: 'https://github.com/openclaw-skills/email-campaigns',
+    sourceUrl: 'https://github.com/nexclaw-skills/email-campaigns',
     createdAt: '2026-01-25',
   },
   {
@@ -149,7 +149,7 @@ const MARKETPLACE_SKILLS: MarketplaceSkill[] = [
     verified: true,
     tags: ['crm', 'enrichment', 'leads', 'data'],
     icon: 'users',
-    sourceUrl: 'https://github.com/openclaw-skills/crm-enricher',
+    sourceUrl: 'https://github.com/nexclaw-skills/crm-enricher',
     createdAt: '2025-12-15',
   },
   {
@@ -165,7 +165,7 @@ const MARKETPLACE_SKILLS: MarketplaceSkill[] = [
     verified: false,
     tags: ['analytics', 'reporting', 'data-viz', 'insights'],
     icon: 'bar-chart',
-    sourceUrl: 'https://github.com/openclaw-skills/analytics-reporter',
+    sourceUrl: 'https://github.com/nexclaw-skills/analytics-reporter',
     createdAt: '2026-02-01',
   },
   {
@@ -173,7 +173,7 @@ const MARKETPLACE_SKILLS: MarketplaceSkill[] = [
     slug: 'database-query-assistant',
     displayName: 'Database Query Assistant',
     description: 'Convert natural language questions to SQL queries. Supports PostgreSQL, MySQL, and SQLite. Includes schema introspection and query optimization suggestions.',
-    author: 'OpenClaw Community',
+    author: 'NexClaw Community',
     version: '1.3.0',
     category: 'data',
     rating: 4.6,
@@ -181,7 +181,7 @@ const MARKETPLACE_SKILLS: MarketplaceSkill[] = [
     verified: true,
     tags: ['sql', 'database', 'queries', 'natural-language'],
     icon: 'database',
-    sourceUrl: 'https://github.com/openclaw-skills/db-query-assistant',
+    sourceUrl: 'https://github.com/nexclaw-skills/db-query-assistant',
     createdAt: '2025-11-28',
   },
   {
@@ -197,7 +197,7 @@ const MARKETPLACE_SKILLS: MarketplaceSkill[] = [
     verified: false,
     tags: ['social-media', 'marketing', 'scheduling', 'content'],
     icon: 'globe',
-    sourceUrl: 'https://github.com/openclaw-skills/social-poster',
+    sourceUrl: 'https://github.com/nexclaw-skills/social-poster',
     createdAt: '2026-02-10',
   },
   {
@@ -213,7 +213,7 @@ const MARKETPLACE_SKILLS: MarketplaceSkill[] = [
     verified: false,
     tags: ['legal', 'contracts', 'review', 'compliance'],
     icon: 'file-text',
-    sourceUrl: 'https://github.com/openclaw-skills/contract-reviewer',
+    sourceUrl: 'https://github.com/nexclaw-skills/contract-reviewer',
     createdAt: '2026-03-01',
   },
 ];
@@ -404,7 +404,7 @@ export function MarketplacePage() {
     <div className="space-y-6">
       <PageHeader
         title="Skill Marketplace"
-        description="Browse and install community skills to extend your OpenClaw agent's capabilities."
+        description="Browse and install community skills to extend your NexClaw agent's capabilities."
       />
 
       {/* Filters */}

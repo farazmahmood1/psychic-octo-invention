@@ -94,7 +94,7 @@ describe('Email Delivery Service', () => {
     expect(createEmailMessageMock).toHaveBeenCalledWith(expect.objectContaining({
       messageId: 'msg-1',
       providerEmailId: '<reply-msg@example.com>',
-      fromAddress: 'noreply@openclaw.dev',
+      fromAddress: 'noreply@nexclaw.dev',
       toAddresses: ['client@example.com'],
       headers: expect.objectContaining({
         'Reply-To': 'resend@forrof.io',

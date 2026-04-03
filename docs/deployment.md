@@ -144,19 +144,19 @@ npm run build:admin      # Vite production build (Admin)
 
 ```bash
 # Build all targets
-docker build --target api -t openclaw-api .
-docker build --target worker -t openclaw-worker .
-docker build --target admin -t openclaw-admin .
-docker build --target migrate -t openclaw-migrate .
+docker build --target api -t nexclaw-api .
+docker build --target worker -t nexclaw-worker .
+docker build --target admin -t nexclaw-admin .
+docker build --target migrate -t nexclaw-migrate .
 
 # Run migration
-docker run --rm -e DATABASE_URL="..." openclaw-migrate
+docker run --rm -e DATABASE_URL="..." nexclaw-migrate
 
 # Run API
-docker run -p 4000:4000 --env-file .env openclaw-api
+docker run -p 4000:4000 --env-file .env nexclaw-api
 
 # Run Worker
-docker run --env-file .env openclaw-worker
+docker run --env-file .env nexclaw-worker
 ```
 
 ## Testing
@@ -182,11 +182,11 @@ The `render.yaml` blueprint defines all services. Deploy via Render Dashboard > 
 
 | Service | Type | Docker Target | Health Check |
 |---------|------|---------------|-------------|
-| `openclaw-api` | Web Service | `api` | `GET /health` |
-| `openclaw-worker` | Worker | `worker` | *(process health)* |
-| `openclaw-admin` | Static Site | *(npm build)* | N/A |
-| `openclaw-redis` | Redis | N/A | Built-in |
-| `openclaw-db` | Postgres 16 | N/A | Built-in |
+| `nexclaw-api` | Web Service | `api` | `GET /health` |
+| `nexclaw-worker` | Worker | `worker` | *(process health)* |
+| `nexclaw-admin` | Static Site | *(npm build)* | N/A |
+| `nexclaw-redis` | Redis | N/A | Built-in |
+| `nexclaw-db` | Postgres 16 | N/A | Built-in |
 
 ### Pre-deploy
 

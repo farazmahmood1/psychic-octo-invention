@@ -1,11 +1,11 @@
-import { logger } from '@openclaw/config';
+import { logger } from '@nexclaw/config';
 import type {
   InboundEvent,
   ExecutionResult,
   MemoryFact,
   ToolDispatch,
   SubAgentDispatch,
-} from '@openclaw/shared';
+} from '@nexclaw/shared';
 import { providerRegistry } from '../services/llm/index.js';
 import { routeModel, escalateModel, enforceSpendControls } from '../services/routing/index.js';
 import { retrieveMemories, extractAndStoreMemories } from '../services/memory/index.js';

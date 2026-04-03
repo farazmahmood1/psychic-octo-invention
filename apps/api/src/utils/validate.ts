@@ -1,6 +1,6 @@
 import type { ZodTypeAny, output } from 'zod';
 import { AppError } from './app-error.js';
-import { HTTP_STATUS } from '@openclaw/shared';
+import { HTTP_STATUS } from '@nexclaw/shared';
 
 /**
  * Parse and validate data against a Zod schema.

@@ -1,8 +1,8 @@
 import { Resend } from 'resend';
 import { createTransport } from 'nodemailer';
 import type { Transporter } from 'nodemailer';
-import { env, logger } from '@openclaw/config';
-import type { OutboundEmailOptions, EmailSendResult } from '@openclaw/shared';
+import { env, logger } from '@nexclaw/config';
+import type { OutboundEmailOptions, EmailSendResult } from '@nexclaw/shared';
 
 const TIMEOUT_MS = 30_000;
 const MAX_RETRIES = 2;

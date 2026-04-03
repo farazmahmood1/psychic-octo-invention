@@ -11,7 +11,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ConfirmDialog } from '@/components/confirm-dialog';
-import type { RoutingSettings, FirstPartyToolSettings } from '@openclaw/shared';
+import type { RoutingSettings, FirstPartyToolSettings } from '@nexclaw/shared';
 import { Plus, Trash2 } from 'lucide-react';
 
 const EMPTY_ROUTING_SETTINGS: { data: RoutingSettings } = {

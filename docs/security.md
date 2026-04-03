@@ -17,7 +17,7 @@
 - Sessions are stored in the `admin_sessions` Postgres table via Prisma.
 - Session tokens are 32-byte random hex strings (via `crypto.randomBytes`).
 - Tokens are SHA-256 hashed before storage — a DB leak does not expose valid tokens.
-- Session cookie (`openclaw.sid`): HttpOnly, Secure (production), SameSite=Lax, 24h max age.
+- Session cookie (`nexclaw.sid`): HttpOnly, Secure (production), SameSite=Lax, 24h max age.
 - Session is validated on every request via `sessionMiddleware`.
 - Expired sessions are rejected and cleaned up.
 
@@ -31,7 +31,7 @@
 ### CSRF Protection
 
 - Double-submit cookie pattern.
-- On login, a CSRF token cookie (`openclaw.csrf`) is set — readable by JS (not HttpOnly).
+- On login, a CSRF token cookie (`nexclaw.csrf`) is set — readable by JS (not HttpOnly).
 - State-changing requests (POST/PUT/PATCH/DELETE) must include `x-csrf-token` header matching the cookie.
 - Comparison uses `crypto.timingSafeEqual` to prevent timing attacks.
 - SameSite=Lax provides additional defense against cross-origin form submissions.

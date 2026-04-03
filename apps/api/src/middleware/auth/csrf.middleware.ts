@@ -1,6 +1,6 @@
 import type { Request, Response, NextFunction } from 'express';
-import { authConfig } from '@openclaw/config';
-import { HTTP_STATUS } from '@openclaw/shared';
+import { authConfig } from '@nexclaw/config';
+import { HTTP_STATUS } from '@nexclaw/shared';
 import { verifyCsrfToken } from '../../services/auth.service.js';
 
 const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);

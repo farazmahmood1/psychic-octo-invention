@@ -1,4 +1,4 @@
-import { logger } from '@openclaw/config';
+import { logger } from '@nexclaw/config';
 import { prisma } from '../db/client.js';
 import { providerRegistry } from '../services/llm/index.js';
 

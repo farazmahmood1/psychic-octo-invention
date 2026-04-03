@@ -1,9 +1,9 @@
 import { Router } from 'express';
 import type { Request, Response } from 'express';
 import { timingSafeEqual } from 'node:crypto';
-import { env, logger } from '@openclaw/config';
-import { HTTP_STATUS } from '@openclaw/shared';
-import type { InboundEmailPayload } from '@openclaw/shared';
+import { env, logger } from '@nexclaw/config';
+import { HTTP_STATUS } from '@nexclaw/shared';
+import type { InboundEmailPayload } from '@nexclaw/shared';
 import { acceptInboundEmailPayload } from '../../services/channels/email.inbound.js';
 
 export const emailWebhookRouter = Router();

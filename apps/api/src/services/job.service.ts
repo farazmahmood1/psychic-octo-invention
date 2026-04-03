@@ -1,4 +1,4 @@
-import type { JobSummary, JobListQuery } from '@openclaw/shared';
+import type { JobSummary, JobListQuery } from '@nexclaw/shared';
 import type { JobStatus } from '@prisma/client';
 import { jobRepository } from '../repositories/job.repository.js';
 

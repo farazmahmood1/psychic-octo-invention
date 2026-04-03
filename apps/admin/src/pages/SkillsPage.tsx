@@ -5,7 +5,7 @@ import type {
   VettingRecord,
   PaginatedResponse,
   DetectedRisk,
-} from '@openclaw/shared';
+} from '@nexclaw/shared';
 import { PageHeader } from '@/components/page-header';
 import { StatusBadge } from '@/components/status-badge';
 import { EmptyState } from '@/components/empty-state';

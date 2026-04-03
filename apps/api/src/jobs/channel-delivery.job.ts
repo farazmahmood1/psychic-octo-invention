@@ -1,4 +1,4 @@
-import type { ChannelDeliveryPayload, ChannelDeliveryResult } from '@openclaw/shared';
+import type { ChannelDeliveryPayload, ChannelDeliveryResult } from '@nexclaw/shared';
 
 /**
  * Job types for the channel-delivery queue.

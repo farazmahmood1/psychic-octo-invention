@@ -30,7 +30,7 @@ export const logger = pino({
   },
   // OpenTelemetry-friendly: trace/span IDs are injected via request middleware
   mixin() {
-    return { service: 'openclaw-api' };
+    return { service: 'nexclaw-api' };
   },
   // Serializers for safe logging
   serializers: {

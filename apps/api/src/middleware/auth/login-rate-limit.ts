@@ -1,5 +1,5 @@
 import rateLimit from 'express-rate-limit';
-import { authConfig } from '@openclaw/config';
+import { authConfig } from '@nexclaw/config';
 
 export const loginRateLimit = rateLimit({
   windowMs: authConfig.rateLimit.loginWindowMs,

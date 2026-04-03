@@ -1,5 +1,5 @@
-import { logger } from '@openclaw/config';
-import { FOLLOWUP_TOOL_NAME } from '@openclaw/shared';
+import { logger } from '@nexclaw/config';
+import { FOLLOWUP_TOOL_NAME } from '@nexclaw/shared';
 import type { FollowUpJobPayload, FollowUpJobResult } from '../jobs/followup.job.js';
 import { toFollowUpJobResult, toFollowUpJobError } from '../jobs/followup.job.js';
 import { executeFollowUpTask } from '../services/subagents/index.js';

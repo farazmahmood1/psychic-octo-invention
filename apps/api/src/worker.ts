@@ -4,7 +4,7 @@
  *
  * Usage: node dist/worker.js
  */
-import { logger, integrationConfigured } from '@openclaw/config';
+import { logger, integrationConfigured } from '@nexclaw/config';
 import { prisma } from './db/client.js';
 import { closeRedis } from './db/redis.js';
 import { startWorkers, closeQueues } from './queues/index.js';

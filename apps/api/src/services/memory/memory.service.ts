@@ -1,5 +1,5 @@
-import { logger } from '@openclaw/config';
-import type { MemoryFact, MemorySnippet, InboundEvent, LlmResponse } from '@openclaw/shared';
+import { logger } from '@nexclaw/config';
+import type { MemoryFact, MemorySnippet, InboundEvent, LlmResponse } from '@nexclaw/shared';
 import { memoryRepository } from '../../repositories/memory.repository.js';
 
 // ── Memory Namespace Conventions ─────────────────────────────

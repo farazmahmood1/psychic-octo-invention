@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { HTTP_STATUS } from '@openclaw/shared';
+import { HTTP_STATUS } from '@nexclaw/shared';
 
 const { findByIdMock, listMock, setEnabledMock, auditCreateMock } = vi.hoisted(() => ({
   findByIdMock: vi.fn(),

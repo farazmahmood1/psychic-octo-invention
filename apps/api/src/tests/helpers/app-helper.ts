@@ -4,8 +4,8 @@
  */
 import express from 'express';
 import cookieParser from 'cookie-parser';
-import type { SessionUser } from '@openclaw/shared';
-import { API_PREFIX } from '@openclaw/shared';
+import type { SessionUser } from '@nexclaw/shared';
+import { API_PREFIX } from '@nexclaw/shared';
 import { globalErrorHandler } from '../../middleware/error-handler.js';
 import { notFoundHandler } from '../../middleware/not-found.js';
 import { createMockSessionUser } from './auth-helper.js';
@@ -40,7 +40,7 @@ export function createTestApp(
 
     // Inject CSRF cookie for state-changing requests
     if (options.csrfToken) {
-      req.cookies['openclaw.csrf'] = options.csrfToken;
+      req.cookies['nexclaw.csrf'] = options.csrfToken;
     }
 
     next();

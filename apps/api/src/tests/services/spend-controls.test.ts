@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { LlmMessage, RoutingDecision, RoutingSettings } from '@openclaw/shared';
+import type { LlmMessage, RoutingDecision, RoutingSettings } from '@nexclaw/shared';
 import { enforceSpendControls } from '../../services/routing/spend-controls.js';
 
 function createRouting(overrides: Partial<RoutingDecision> = {}): RoutingDecision {

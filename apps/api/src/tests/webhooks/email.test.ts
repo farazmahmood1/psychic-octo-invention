@@ -4,7 +4,7 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import supertest from 'supertest';
-import { env } from '@openclaw/config';
+import { env } from '@nexclaw/config';
 import {
   createInboundEmailPayload,
   createThreadedEmailPayload,
@@ -121,7 +121,7 @@ describe('Email Webhook', () => {
       const res = await supertest(app)
         .post('/')
         .set('x-email-webhook-secret', EMAIL_WEBHOOK_SECRET)
-        .send({ to: ['support@openclaw.dev'], subject: 'test' });
+        .send({ to: ['support@nexclaw.dev'], subject: 'test' });
 
       expect(res.status).toBe(400);
     });

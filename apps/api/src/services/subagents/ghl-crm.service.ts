@@ -1,11 +1,11 @@
-import { logger } from '@openclaw/config';
+import { logger } from '@nexclaw/config';
 import type {
   GhlSubAgentInput,
   GhlSubAgentOutput,
   GhlContact,
   GhlActionType,
   SubAgentDispatch,
-} from '@openclaw/shared';
+} from '@nexclaw/shared';
 // GHL_CRM_TOOL_NAME used externally; not needed in this service file
 import {
   searchContacts,

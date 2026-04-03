@@ -1,5 +1,5 @@
-import { logger } from '@openclaw/config';
-import { BOOKKEEPING_TOOL_NAME } from '@openclaw/shared';
+import { logger } from '@nexclaw/config';
+import { BOOKKEEPING_TOOL_NAME } from '@nexclaw/shared';
 import type { BookkeepingJobPayload, BookkeepingJobResult } from '../jobs/bookkeeping.job.js';
 import { toBookkeepingJobResult, toBookkeepingJobError } from '../jobs/bookkeeping.job.js';
 import { executeBookkeepingTask } from '../services/subagents/bookkeeping/index.js';

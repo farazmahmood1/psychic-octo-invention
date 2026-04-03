@@ -1,4 +1,4 @@
-import type { AuditLogEntry, AuditLogQuery } from '@openclaw/shared';
+import type { AuditLogEntry, AuditLogQuery } from '@nexclaw/shared';
 import { auditRepository } from '../repositories/audit.repository.js';
 
 export async function listAuditLogs(query: AuditLogQuery) {

@@ -15,7 +15,7 @@ const ThemeContext = createContext<ThemeContextValue>({
   setTheme: () => {},
 });
 
-const STORAGE_KEY = 'openclaw-theme';
+const STORAGE_KEY = 'nexclaw-theme';
 
 function getSystemPreference(): 'light' | 'dark' {
   if (typeof window === 'undefined') return 'light';

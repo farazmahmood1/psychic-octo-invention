@@ -1,4 +1,4 @@
-import type { UsageSummaryResponse, UsageSummaryQuery, UsageTimeseriesQuery, UsageTimeseriesBucket } from '@openclaw/shared';
+import type { UsageSummaryResponse, UsageSummaryQuery, UsageTimeseriesQuery, UsageTimeseriesBucket } from '@nexclaw/shared';
 import { usageRepository } from '../repositories/usage.repository.js';
 
 export async function getUsageSummary(query: UsageSummaryQuery): Promise<UsageSummaryResponse> {

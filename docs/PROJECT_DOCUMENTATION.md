@@ -1,4 +1,4 @@
-# OpenClaw Admin System - Comprehensive Project Documentation
+# NexClaw Admin System - Comprehensive Project Documentation
 
 ## Table of Contents
 
@@ -17,9 +17,9 @@
 
 ## 1. Project Overview
 
-### What Is OpenClaw Admin System?
+### What Is NexClaw Admin System?
 
-OpenClaw Admin System is a **production-ready, AI-powered admin platform** designed to serve as a centralized command center for managing multi-channel customer communications, AI-driven automation, and business operations. It enables a team to interact with customers through Telegram and Email, with an AI orchestration layer that intelligently routes messages, processes receipts, manages CRM contacts, and follows up on stale leads -- all monitored through a secure admin portal.
+NexClaw Admin System is a **production-ready, AI-powered admin platform** designed to serve as a centralized command center for managing multi-channel customer communications, AI-driven automation, and business operations. It enables a team to interact with customers through Telegram and Email, with an AI orchestration layer that intelligently routes messages, processes receipts, manages CRM contacts, and follows up on stale leads -- all monitored through a secure admin portal.
 
 ### What Problem Does It Solve?
 
@@ -31,7 +31,7 @@ Businesses that communicate with clients across multiple channels (Telegram, ema
 - **No AI governance**: Running AI skills without security vetting introduces risk.
 - **Lack of visibility**: No centralized dashboard for usage metrics, costs, or audit trails.
 
-OpenClaw solves all of these by providing:
+NexClaw solves all of these by providing:
 
 - A **unified AI orchestration layer** that receives messages from any channel, routes them to the appropriate LLM model, and dispatches tasks to specialized sub-agents.
 - An **admin portal** for monitoring conversations, viewing analytics, managing AI skills, and tracking system health.
@@ -296,8 +296,8 @@ Unconfigured integrations report `unconfigured` status; the system continues ope
 
 | Library | Package | Purpose |
 |---------|---------|---------|
-| `zod` | @openclaw/shared | Request/response validation schemas shared between frontend and backend |
-| `pino` | @openclaw/config | Structured logger configuration |
+| `zod` | @nexclaw/shared | Request/response validation schemas shared between frontend and backend |
+| `pino` | @nexclaw/config | Structured logger configuration |
 
 ### Development Tools
 
@@ -321,7 +321,7 @@ Unconfigured integrations report `unconfigured` status; the system continues ope
 The project uses **npm workspaces** to manage a monorepo with 4 packages:
 
 ```
-openclaw-admin-system/
+nexclaw-admin-system/
 |
 +-- apps/
 |   +-- api/                    # Backend: Express REST API + webhooks + workers
@@ -356,7 +356,7 @@ openclaw-admin-system/
 
 **Why this structure?**
 
-- **Shared packages** (`@openclaw/shared`, `@openclaw/config`) prevent code duplication between frontend and backend. Type definitions, validation schemas, and constants are defined once and imported everywhere.
+- **Shared packages** (`@nexclaw/shared`, `@nexclaw/config`) prevent code duplication between frontend and backend. Type definitions, validation schemas, and constants are defined once and imported everywhere.
 - **Workspace separation** keeps the API, admin UI, and shared libraries independently buildable and testable.
 - **Monorepo** simplifies dependency management, ensures consistent versions, and enables atomic changes across packages.
 
@@ -435,7 +435,7 @@ The frontend communicates with the backend through a typed API client (`api/clie
 
 - **Base URL**: `/api/v1` (proxied to `localhost:4000` in development via Vite)
 - **Methods**: `apiClient.get<T>()`, `.post<T>()`, `.put<T>()`, `.patch<T>()`, `.delete<T>()`
-- **CSRF Protection**: Reads token from `openclaw.csrf` cookie, attaches as `x-csrf-token` header on non-GET requests
+- **CSRF Protection**: Reads token from `nexclaw.csrf` cookie, attaches as `x-csrf-token` header on non-GET requests
 - **Credentials**: `credentials: 'include'` sends session cookies with every request
 - **Error Handling**: Custom `ApiClientError` class with `{ status, code, message }` structure
 
@@ -689,7 +689,7 @@ Error codes map to HTTP statuses: `VALIDATION_ERROR` (400), `UNAUTHORIZED` (401)
 
 ### 5.4 Shared Packages
 
-#### @openclaw/shared
+#### @nexclaw/shared
 
 Provides types, schemas, and constants shared between frontend and backend:
 
@@ -698,7 +698,7 @@ Provides types, schemas, and constants shared between frontend and backend:
 - **Constants**: `SERVICE_NAME`, `API_PREFIX`, `ADMIN_ROLES`, `HTTP_STATUS` codes
 - **Enums**: 14 string union types for channel, message, skill, job, and integration statuses
 
-#### @openclaw/config
+#### @nexclaw/config
 
 Provides centralized configuration consumed by the API:
 
@@ -906,7 +906,7 @@ The database contains **24 models** organized into these functional groups:
 
 ```bash
 git clone <repo-url>
-cd openclaw-admin-system
+cd nexclaw-admin-system
 ```
 
 #### 2. Install Dependencies
@@ -1072,10 +1072,10 @@ The `Dockerfile` uses a 6-stage multi-stage build:
 Build commands:
 
 ```bash
-docker build --target api -t openclaw-api .
-docker build --target worker -t openclaw-worker .
-docker build --target admin -t openclaw-admin .
-docker build --target migrate -t openclaw-migrate .
+docker build --target api -t nexclaw-api .
+docker build --target worker -t nexclaw-worker .
+docker build --target admin -t nexclaw-admin .
+docker build --target migrate -t nexclaw-migrate .
 ```
 
 ### Render.com Deployment (Recommended)
@@ -1084,11 +1084,11 @@ The project includes a `render.yaml` blueprint that defines all services:
 
 | Service | Type | Details |
 |---------|------|---------|
-| `openclaw-api` | Web Service (Docker) | Target: `api`, health check: `GET /health` |
-| `openclaw-worker` | Worker (Docker) | Target: `worker`, shares env vars with API |
-| `openclaw-admin` | Static Site | Built from `apps/admin/dist`, SPA rewrite rules |
-| `openclaw-redis` | Redis | Managed Redis instance |
-| `openclaw-db` | PostgreSQL 16 | Managed database |
+| `nexclaw-api` | Web Service (Docker) | Target: `api`, health check: `GET /health` |
+| `nexclaw-worker` | Worker (Docker) | Target: `worker`, shares env vars with API |
+| `nexclaw-admin` | Static Site | Built from `apps/admin/dist`, SPA rewrite rules |
+| `nexclaw-redis` | Redis | Managed Redis instance |
+| `nexclaw-db` | PostgreSQL 16 | Managed database |
 
 **First Deployment Steps:**
 
@@ -1155,7 +1155,7 @@ Both API and Worker handle `SIGTERM`/`SIGINT` signals for zero-downtime deployme
 - On password change, all sessions for the user are invalidated
 
 #### CSRF Protection
-- **Double-submit cookie** pattern: `openclaw.csrf` cookie readable by JavaScript, matched against `x-csrf-token` header
+- **Double-submit cookie** pattern: `nexclaw.csrf` cookie readable by JavaScript, matched against `x-csrf-token` header
 - Comparison uses `crypto.timingSafeEqual` to prevent timing attacks
 - Required on all state-changing requests (POST, PUT, PATCH, DELETE)
 
@@ -1248,4 +1248,4 @@ These items are documented but not blocking production readiness:
 
 ---
 
-*This document was generated from a comprehensive analysis of the OpenClaw Admin System codebase. For specific deployment instructions, see `docs/deployment.md`. For security details, see `docs/security.md`. For test coverage mapping, see `docs/handoff.md`.*
+*This document was generated from a comprehensive analysis of the NexClaw Admin System codebase. For specific deployment instructions, see `docs/deployment.md`. For security details, see `docs/security.md`. For test coverage mapping, see `docs/handoff.md`.*

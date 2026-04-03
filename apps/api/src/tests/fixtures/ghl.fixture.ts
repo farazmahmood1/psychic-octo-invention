@@ -1,7 +1,7 @@
 /**
  * Realistic GHL CRM response fixtures.
  */
-import type { GhlContact, GhlContactSearchResult } from '@openclaw/shared';
+import type { GhlContact, GhlContactSearchResult } from '@nexclaw/shared';
 
 export function createGhlContact(overrides: Partial<GhlContact> = {}): GhlContact {
   return {

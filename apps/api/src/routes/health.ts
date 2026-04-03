@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import type { Response } from 'express';
-import { SERVICE_NAME } from '@openclaw/shared';
-import { env, integrationConfigured } from '@openclaw/config';
+import { SERVICE_NAME } from '@nexclaw/shared';
+import { env, integrationConfigured } from '@nexclaw/config';
 import { checkDatabaseHealth, checkRedisHealth } from '../db/index.js';
 
 export const healthRouter = Router();

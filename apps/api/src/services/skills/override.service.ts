@@ -1,6 +1,6 @@
-import type { VettingRecord, VettingResult } from '@openclaw/shared';
-import { HTTP_STATUS } from '@openclaw/shared';
-import { logger } from '@openclaw/config';
+import type { VettingRecord, VettingResult } from '@nexclaw/shared';
+import { HTTP_STATUS } from '@nexclaw/shared';
+import { logger } from '@nexclaw/config';
 import { prisma } from '../../db/client.js';
 import { auditRepository } from '../../repositories/audit.repository.js';
 import { AppError } from '../../utils/app-error.js';

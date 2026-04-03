@@ -2,8 +2,8 @@ import type {
   InboundEmailPayload,
   InboundEvent,
   Attachment,
-} from '@openclaw/shared';
-import { logger } from '@openclaw/config';
+} from '@nexclaw/shared';
+import { logger } from '@nexclaw/config';
 import { parseEmailThread } from './thread-parser.js';
 import { stripHtml, truncateToBytes } from './thread-parser.js';
 

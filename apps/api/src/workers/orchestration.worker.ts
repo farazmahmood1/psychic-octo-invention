@@ -1,4 +1,4 @@
-import { logger } from '@openclaw/config';
+import { logger } from '@nexclaw/config';
 import { QUEUES, toJobResult, toJobError, type OrchestrationJobPayload, type OrchestrationJobResult } from '../jobs/index.js';
 import { executeEvent } from '../orchestration/index.js';
 import { getQueue } from '../queues/index.js';

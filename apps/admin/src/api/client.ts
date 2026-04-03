@@ -1,5 +1,5 @@
 const BASE_URL = '/api/v1';
-const CSRF_COOKIE_NAME = 'openclaw.csrf';
+const CSRF_COOKIE_NAME = 'nexclaw.csrf';
 
 interface RequestOptions {
   method?: string;

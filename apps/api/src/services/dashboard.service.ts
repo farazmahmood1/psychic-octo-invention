@@ -1,4 +1,4 @@
-import type { DashboardStats } from '@openclaw/shared';
+import type { DashboardStats } from '@nexclaw/shared';
 import { conversationRepository } from '../repositories/conversation.repository.js';
 import { usageRepository } from '../repositories/usage.repository.js';
 import { prisma } from '../db/client.js';

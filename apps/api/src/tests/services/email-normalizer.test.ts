@@ -29,12 +29,12 @@ describe('Email Normalizer - T2 threading behavior', () => {
 
   it('handles payload.to as a single string instead of an array', () => {
     const payload = createInboundEmailPayload({
-      to: 'support@openclaw.dev' as unknown as string[],
+      to: 'support@nexclaw.dev' as unknown as string[],
     });
     const event = normalizeInboundEmail(payload);
 
     expect(event).not.toBeNull();
-    expect(event!.metadata['emailTo']).toEqual(['support@openclaw.dev']);
+    expect(event!.metadata['emailTo']).toEqual(['support@nexclaw.dev']);
   });
 
   it('handles payload.cc as a single string instead of an array', () => {

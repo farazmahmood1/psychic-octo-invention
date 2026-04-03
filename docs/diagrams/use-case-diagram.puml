@@ -1,6 +1,6 @@
-@startuml OpenClaw Admin System - Use Case Diagram
+@startuml NexClaw Admin System - Use Case Diagram
 
-title OpenClaw Admin System — Use Case Diagram
+title NexClaw Admin System — Use Case Diagram
 
 left to right direction
 skinparam actorStyle awesome

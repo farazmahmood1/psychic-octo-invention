@@ -1,4 +1,4 @@
-import type { DetectedRisk } from '@openclaw/shared';
+import type { DetectedRisk } from '@nexclaw/shared';
 import type { ScanResult, ScanRule } from './scanner.js';
 import { SCAN_RULES } from './scanner.js';
 

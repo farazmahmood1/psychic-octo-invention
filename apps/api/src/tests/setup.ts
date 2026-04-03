@@ -6,7 +6,7 @@ import { vi } from 'vitest';
 
 // Set test environment variables before any module loads env
 process.env['NODE_ENV'] = 'test';
-process.env['DATABASE_URL'] = 'postgresql://test:test@localhost:5432/openclaw_test';
+process.env['DATABASE_URL'] = 'postgresql://test:test@localhost:5432/nexclaw_test';
 process.env['REDIS_URL'] = 'redis://localhost:6379/1';
 process.env['SESSION_SECRET'] = 'test-session-secret-minimum-32-chars-long!!';
 process.env['OPENROUTER_API_KEY'] = 'test-openrouter-key';
@@ -18,9 +18,9 @@ process.env['RESEND_API_KEY'] = 're_test-resend-api-key';
 process.env['RESEND_WEBHOOK_SECRET'] = 'whsec_test-resend-webhook-secret';
 process.env['SMTP_HOST'] = 'localhost';
 process.env['SMTP_PORT'] = '587';
-process.env['SMTP_USER'] = 'test@openclaw.dev';
+process.env['SMTP_USER'] = 'test@nexclaw.dev';
 process.env['SMTP_PASS'] = 'test-smtp-pass';
-process.env['SMTP_FROM'] = 'noreply@openclaw.dev';
+process.env['SMTP_FROM'] = 'noreply@nexclaw.dev';
 process.env['GHL_API_BASE_URL'] = 'https://rest.gohighlevel.com/v1';
 process.env['GHL_API_TOKEN'] = 'test-ghl-token';
 process.env['GOOGLE_SERVICE_ACCOUNT_JSON'] = '{"type":"service_account","project_id":"test"}';
@@ -73,8 +73,8 @@ vi.mock('../queues/index.js', () => ({
 }));
 
 // Mock logger to suppress output during tests
-vi.mock('@openclaw/config', async () => {
-  const actual = await vi.importActual<Record<string, unknown>>('@openclaw/config');
+vi.mock('@nexclaw/config', async () => {
+  const actual = await vi.importActual<Record<string, unknown>>('@nexclaw/config');
   return {
     ...actual,
     logger: {

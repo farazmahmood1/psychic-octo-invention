@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import type { Request, Response, NextFunction } from 'express';
-import { bookkeepingListQuerySchema } from '@openclaw/shared';
+import { bookkeepingListQuerySchema } from '@nexclaw/shared';
 import { requireAuth } from '../middleware/auth/require-auth.js';
 import { requireRole } from '../middleware/auth/require-role.js';
 import { validate } from '../utils/validate.js';
